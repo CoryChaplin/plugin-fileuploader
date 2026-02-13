@@ -235,6 +235,11 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 
 		// If ?raw=1 query parameter is present, always serve binary
 		if c.Query("raw") == "1" {
+			// Rewrite path to remove filename for TUS handler
+			if filename != "" {
+				routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
+				c.Request.URL.Path = path.Join(routePrefix, id)
+			}
 			handler.GetFile(c.Writer, c.Request)
 			return
 		}
@@ -319,9 +324,11 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		filename = info.ID
 	}
 
-	// Build direct URL for the file with ?raw=1 to force binary download
-	routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
-	directURL := path.Join(routePrefix, info.ID, url.PathEscape(filename)) + "?raw=1"
+	// Build URLs using current request path to preserve URL encoding
+	// PageURL: HTML page URL for Open Graph (no query params)
+	// DirectURL: Binary file URL with ?raw=1 for img/video/audio tags
+	pageURL := c.Request.URL.Path
+	directURL := c.Request.URL.Path + "?raw=1"
 
 	// Build view model
 	view := FileView{
@@ -329,6 +336,7 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		FileSize:      info.Size,
 		FileSizeHuman: humanizeBytes(info.Size),
 		MimeType:      mimeType,
+		PageURL:       pageURL,
 		DirectURL:     directURL,
 		IsImage:       strings.HasPrefix(mimeType, "image/"),
 		IsVideo:       strings.HasPrefix(mimeType, "video/"),

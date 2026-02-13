@@ -14,7 +14,8 @@ type FileView struct {
 	MimeType      string    // MIME type
 	UploadDate    time.Time // Upload timestamp
 	ExpiresAt     time.Time // Expiration timestamp
-	DirectURL     string    // URL for direct download
+	PageURL       string    // URL of the HTML page (for og:url)
+	DirectURL     string    // URL for direct download with ?raw=1
 
 	// Flags for conditional display
 	IsImage bool
@@ -52,7 +53,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<!-- Open Graph pour prévisualisations sociales -->
 	<meta property="og:title" content="{{.Filename}}">
 	<meta property="og:type" content="website">
-	<meta property="og:url" content="{{.DirectURL}}">
+	<meta property="og:url" content="{{.PageURL}}">
 	{{if .IsImage}}
 	<meta property="og:image" content="{{.DirectURL}}">
 	{{end}}
