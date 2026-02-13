@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"sync"
 
@@ -50,6 +51,16 @@ func init() {
 // Run starts the UploadServer
 func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
 	serv.Router = gin.New()
+
+	// Handle X-Forwarded-Proto from reverse proxy (must be first middleware)
+	serv.Router.Use(func(c *gin.Context) {
+		if proto := c.Request.Header.Get("X-Forwarded-Proto"); proto == "https" {
+			c.Request.URL.Scheme = "https"
+			c.Request.TLS = &tls.ConnectionState{} // Signal that this is a TLS connection
+		}
+		c.Next()
+	})
+
 	serv.Router.Use(logging.GinLogger(serv.log), gin.Recovery())
 
 	serv.DBConn = db.ConnectToDB(serv.log, db.DBConfig{
