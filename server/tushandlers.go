@@ -56,6 +56,16 @@ func customizedCors(serv *UploadServer) gin.HandlerFunc {
 	}
 }
 
+func forwardedProtoMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// If behind a trusted reverse proxy, use X-Forwarded-Proto to set the request scheme
+		if proto := c.Request.Header.Get("X-Forwarded-Proto"); proto == "https" {
+			c.Request.URL.Scheme = "https"
+		}
+		c.Next()
+	}
+}
+
 func (serv *UploadServer) fileuploaderMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method != "POST" && c.Request.Method != "DELETE" {
@@ -142,6 +152,7 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 	tusdMiddleware := gin.WrapH(handler.Middleware(noopHandler))
 
 	rg := r.Group(routePrefix)
+	rg.Use(forwardedProtoMiddleware())
 	rg.Use(tusdMiddleware)
 	rg.Use(customizedCors(serv))
 	rg.Use(serv.fileuploaderMiddleware())
