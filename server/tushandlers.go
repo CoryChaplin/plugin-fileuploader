@@ -227,10 +227,17 @@ func (serv *UploadServer) delFile(handler *tusd.UnroutedHandler) gin.HandlerFunc
 
 // getFileOrHtml handles GET requests with content negotiation
 // Browsers receive HTML wrapper, tools (curl/wget) receive binary
+// Query parameter ?raw=1 forces binary download
 func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		filename := c.Param("filename")
+
+		// If ?raw=1 query parameter is present, always serve binary
+		if c.Query("raw") == "1" {
+			handler.GetFile(c.Writer, c.Request)
+			return
+		}
 
 		// Load file metadata from storage
 		upload, err := serv.store.GetUpload(c.Request.Context(), id)
@@ -261,6 +268,10 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 				// Redirect to canonical URL with correct filename
 				routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
 				correctPath := path.Join(routePrefix, id, url.PathEscape(actualFilename))
+				// Preserve ?raw=1 query parameter in redirect if present
+				if c.Query("raw") != "" {
+					correctPath += "?raw=1"
+				}
 				c.Redirect(http.StatusMovedPermanently, correctPath)
 				return
 			}
@@ -308,9 +319,9 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		filename = info.ID
 	}
 
-	// Build direct URL for the file
+	// Build direct URL for the file with ?raw=1 to force binary download
 	routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
-	directURL := path.Join(routePrefix, info.ID, url.PathEscape(filename))
+	directURL := path.Join(routePrefix, info.ID, url.PathEscape(filename)) + "?raw=1"
 
 	// Build view model
 	view := FileView{
@@ -349,9 +360,8 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		view.TextContent = textContent
 	}
 
-	// Set headers
+	// Set headers (CSP is defined in HTML template meta tag)
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.Header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; media-src 'self'; img-src 'self';")
 	c.Status(http.StatusOK)
 
 	// Execute template

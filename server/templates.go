@@ -81,15 +81,9 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			line-height: 1.6;
 			padding: 0;
 			margin: 0;
-		}
-
-		.container {
-			max-width: 1200px;
-			margin: 70px auto 20px;
-			background: white;
-			border-radius: 8px;
-			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-			overflow: hidden;
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
 		}
 
 		/* EuropNet Navbar */
@@ -164,69 +158,45 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			border-color: #428BCA;
 		}
 
-		header {
-			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-			color: white;
-			padding: 30px;
-		}
-
-		h1 {
-			font-size: 24px;
-			margin-bottom: 15px;
-			word-break: break-word;
-		}
-
-		.metadata {
+		.container {
+			flex: 1;
 			display: flex;
-			flex-wrap: wrap;
-			gap: 20px;
-			font-size: 14px;
-			opacity: 0.9;
-		}
-
-		.metadata span {
-			display: inline-flex;
 			align-items: center;
-		}
-
-		.metadata span::before {
-			content: "•";
-			margin-right: 8px;
-		}
-
-		.metadata span:first-child::before {
-			content: "";
-			margin-right: 0;
+			justify-content: center;
+			padding: 70px 20px 20px;
 		}
 
 		main {
-			padding: 30px;
+			width: 100%;
+			max-width: 1200px;
 			text-align: center;
 		}
 
 		.preview-image {
 			max-width: 100%;
+			max-height: calc(100vh - 100px);
 			height: auto;
 			border-radius: 4px;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 		}
 
 		.preview-video,
 		.preview-audio {
 			max-width: 100%;
 			border-radius: 4px;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 		}
 
 		.preview-video {
-			max-height: 70vh;
+			max-height: calc(100vh - 100px);
 		}
 
 		.preview-pdf {
 			width: 100%;
-			height: 80vh;
-			border: 1px solid #ddd;
+			height: calc(100vh - 90px);
+			border: none;
 			border-radius: 4px;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 		}
 
 		.preview-text {
@@ -239,33 +209,11 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			font-family: 'Courier New', Courier, monospace;
 			font-size: 14px;
 			line-height: 1.5;
-			max-height: 80vh;
+			max-height: calc(100vh - 120px);
 			overflow-y: auto;
 			text-align: left;
 			border: 1px solid #ddd;
-		}
-
-		footer {
-			padding: 30px;
-			background: #f9f9f9;
-			border-top: 1px solid #eee;
-			text-align: center;
-		}
-
-		.download-btn {
-			display: inline-block;
-			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-			color: white;
-			padding: 12px 30px;
-			border-radius: 4px;
-			text-decoration: none;
-			font-weight: 500;
-			transition: transform 0.2s, box-shadow 0.2s;
-		}
-
-		.download-btn:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 		}
 
 		/* Dark mode support */
@@ -275,56 +223,44 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 				color: #e0e0e0;
 			}
 
-			.container {
-				background: #2d2d2d;
-				box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-			}
-
 			.preview-text {
 				background: #1a1a1a;
 				color: #e0e0e0;
 				border-color: #444;
 			}
 
-			footer {
-				background: #252525;
-				border-top-color: #444;
-			}
-
+			.preview-image,
+			.preview-video,
+			.preview-audio,
 			.preview-pdf {
-				border-color: #444;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 			}
 		}
 
 		/* Mobile responsive */
 		@media (max-width: 768px) {
 			.container {
-				margin: 60px 10px 10px;
-			}
-
-			header {
-				padding: 20px;
-			}
-
-			h1 {
-				font-size: 20px;
-			}
-
-			main {
-				padding: 20px;
-			}
-
-			footer {
-				padding: 20px;
-			}
-
-			.metadata {
-				font-size: 13px;
-				gap: 15px;
+				padding: 60px 10px 10px;
 			}
 
 			#navbar .nav {
 				display: none;
+			}
+
+			.preview-image {
+				max-height: calc(100vh - 80px);
+			}
+
+			.preview-video {
+				max-height: calc(100vh - 80px);
+			}
+
+			.preview-pdf {
+				height: calc(100vh - 70px);
+			}
+
+			.preview-text {
+				max-height: calc(100vh - 90px);
 			}
 		}
 	</style>
@@ -362,17 +298,6 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	</div>
 
 	<div class="container">
-		<header>
-			<h1>{{.Filename}}</h1>
-			<div class="metadata">
-				<span>Taille : {{.FileSizeHuman}}</span>
-				<span>Type : {{.MimeType}}</span>
-				{{if not .ExpiresAt.IsZero}}
-				<span>Expire : {{.ExpiresAt.Format "02/01/2006 15:04"}}</span>
-				{{end}}
-			</div>
-		</header>
-
 		<main>
 			{{if .IsImage}}
 			<img src="{{.DirectURL}}" alt="{{.Filename}}" class="preview-image">
@@ -392,12 +317,6 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			<pre class="preview-text">{{.TextContent}}</pre>
 			{{end}}
 		</main>
-
-		<footer>
-			<a href="{{.DirectURL}}" download="{{.Filename}}" class="download-btn">
-				⬇️ Télécharger le fichier
-			</a>
-		</footer>
 	</div>
 
 	<!-- Google tag (gtag.js) -->
