@@ -1,16 +1,21 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	goLog "log"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
@@ -154,9 +159,9 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 	rg.HEAD(":id", headFile)
 	rg.HEAD(":id/:filename", rewritePath(headFile, routePrefix))
 
-	getFile := gin.WrapF(handler.GetFile)
-	rg.GET(":id", getFile)
-	rg.GET(":id/:filename", rewritePath(getFile, routePrefix))
+	// Use new content negotiation handler for GET requests
+	rg.GET(":id", serv.getFileOrHtml(handler))
+	rg.GET(":id/:filename", serv.getFileOrHtml(handler))
 
 	patchFile := gin.WrapF(handler.PatchFile)
 	rg.PATCH(":id", patchFile)
@@ -218,6 +223,176 @@ func (serv *UploadServer) delFile(handler *tusd.UnroutedHandler) gin.HandlerFunc
 
 		handler.DelFile(c.Writer, c.Request)
 	}
+}
+
+// getFileOrHtml handles GET requests with content negotiation
+// Browsers receive HTML wrapper, tools (curl/wget) receive binary
+func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		filename := c.Param("filename")
+
+		// Load file metadata from storage
+		upload, err := serv.store.GetUpload(c.Request.Context(), id)
+		if err != nil {
+			// File not found or error loading
+			handler.GetFile(c.Writer, c.Request)
+			return
+		}
+
+		info, err := upload.GetInfo(c.Request.Context())
+		if err != nil {
+			// Error getting file info, fall back to binary
+			handler.GetFile(c.Writer, c.Request)
+			return
+		}
+
+		// Get MIME type from metadata
+		mimeType := info.MetaData["filetype"]
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+
+		// Optional: Validate filename matches if provided
+		if filename != "" {
+			actualFilename := info.MetaData["filename"]
+			decodedFilename, _ := url.PathUnescape(filename)
+			if actualFilename != "" && decodedFilename != actualFilename {
+				// Redirect to canonical URL with correct filename
+				routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
+				correctPath := path.Join(routePrefix, id, url.PathEscape(actualFilename))
+				c.Redirect(http.StatusMovedPermanently, correctPath)
+				return
+			}
+		}
+
+		// Determine if file is viewable
+		isViewable := strings.HasPrefix(mimeType, "image/") ||
+			strings.HasPrefix(mimeType, "video/") ||
+			strings.HasPrefix(mimeType, "audio/") ||
+			strings.HasPrefix(mimeType, "text/") ||
+			mimeType == "application/pdf"
+
+		if !isViewable {
+			// Always serve as binary for non-viewable files
+			handler.GetFile(c.Writer, c.Request)
+			return
+		}
+
+		// Detect client type via Accept header
+		accept := c.GetHeader("Accept")
+		userAgent := c.GetHeader("User-Agent")
+
+		wantsHtml := strings.Contains(accept, "text/html")
+		isBrowser := strings.Contains(userAgent, "Mozilla") ||
+			strings.Contains(userAgent, "Chrome") ||
+			strings.Contains(userAgent, "Safari")
+
+		if wantsHtml || (isBrowser && accept == "*/*") {
+			serv.serveHtmlWrapper(c, handler, upload, info)
+		} else {
+			// Serve raw file via TUS handler
+			handler.GetFile(c.Writer, c.Request)
+		}
+	}
+}
+
+// serveHtmlWrapper renders the HTML preview page for a file
+func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.UnroutedHandler, upload tusd.Upload, info tusd.FileInfo) {
+	mimeType := info.MetaData["filetype"]
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	filename := info.MetaData["filename"]
+	if filename == "" {
+		filename = info.ID
+	}
+
+	// Build direct URL for the file
+	routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
+	directURL := path.Join(routePrefix, info.ID, url.PathEscape(filename))
+
+	// Build view model
+	view := FileView{
+		Filename:      filename,
+		FileSize:      info.Size,
+		FileSizeHuman: humanizeBytes(info.Size),
+		MimeType:      mimeType,
+		DirectURL:     directURL,
+		IsImage:       strings.HasPrefix(mimeType, "image/"),
+		IsVideo:       strings.HasPrefix(mimeType, "video/"),
+		IsAudio:       strings.HasPrefix(mimeType, "audio/"),
+		IsPDF:         mimeType == "application/pdf",
+		IsText:        strings.HasPrefix(mimeType, "text/"),
+	}
+
+	// Parse expiration from metadata
+	if expiresStr, ok := info.MetaData["expires"]; ok {
+		expiresUnix, err := strconv.ParseInt(expiresStr, 10, 64)
+		if err == nil {
+			view.ExpiresAt = time.Unix(expiresUnix, 0)
+		}
+	}
+
+	// For text files, load content
+	if view.IsText {
+		textContent, err := serv.readTextContent(upload, info.Size)
+		if err != nil {
+			// If error (file too large, non-UTF8), fallback to binary download
+			serv.log.Debug().
+				Err(err).
+				Str("id", info.ID).
+				Msg("Failed to read text content, serving as binary")
+			handler.GetFile(c.Writer, c.Request)
+			return
+		}
+		view.TextContent = textContent
+	}
+
+	// Set headers
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Security-Policy", "default-src 'self'; style-src 'unsafe-inline'; media-src 'self'; img-src 'self';")
+	c.Status(http.StatusOK)
+
+	// Execute template
+	err := serv.htmlTemplate.Execute(c.Writer, view)
+	if err != nil {
+		serv.log.Error().Err(err).Msg("Failed to render HTML template")
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+}
+
+// readTextContent reads and validates UTF-8 text file content
+func (serv *UploadServer) readTextContent(upload tusd.Upload, fileSize int64) (string, error) {
+	// Limit size to avoid loading huge files into memory
+	const maxTextSize = 1024 * 1024 // 1 MB max for text display
+	if fileSize > maxTextSize {
+		return "", fmt.Errorf("file too large for text display (%d bytes)", fileSize)
+	}
+
+	// Get file reader
+	reader, err := upload.GetReader(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to get reader: %w", err)
+	}
+
+	// Close reader if it implements io.Closer
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+
+	// Read complete content
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to read content: %w", err)
+	}
+
+	// Validate UTF-8
+	if !utf8.Valid(content) {
+		return "", fmt.Errorf("file is not valid UTF-8")
+	}
+
+	return string(content), nil
 }
 
 func (serv *UploadServer) getSecretForToken(token *jwt.Token) (interface{}, error) {

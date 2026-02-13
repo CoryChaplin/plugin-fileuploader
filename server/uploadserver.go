@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"html/template"
 	"net/http"
 	"sync"
 
@@ -26,6 +27,7 @@ type UploadServer struct {
 	store               *shardedfilestore.ShardedFileStore
 	expirer             *expirer.Expirer
 	httpServer          *http.Server
+	htmlTemplate        *template.Template
 	startedMu           sync.Mutex
 	started             chan struct{}
 	tusEventBroadcaster *events.TusEventBroadcaster
@@ -49,6 +51,8 @@ func init() {
 
 // Run starts the UploadServer
 func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
+	var err error
+
 	serv.Router = gin.New()
 	serv.Router.Use(logging.GinLogger(serv.log), gin.Recovery())
 
@@ -73,7 +77,14 @@ func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
 		serv.log,
 	)
 
-	err := serv.registerTusHandlers(serv.Router, serv.store)
+	// Initialize HTML template for file preview pages
+	serv.htmlTemplate, err = ParseFileViewTemplate()
+	if err != nil {
+		serv.log.Error().Err(err).Msg("Failed to parse HTML template")
+		return err
+	}
+
+	err = serv.registerTusHandlers(serv.Router, serv.store)
 	if err != nil {
 		return err
 	}
