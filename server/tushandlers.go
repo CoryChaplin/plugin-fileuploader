@@ -324,11 +324,23 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		filename = info.ID
 	}
 
-	// Build URLs using current request path to preserve URL encoding
+	// Build absolute URLs for Open Graph (crawlers need full URLs)
+	// Detect scheme (check X-Forwarded-Proto header for reverse proxy)
+	scheme := "https"
+	if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	} else if c.Request.TLS != nil {
+		scheme = "https"
+	} else {
+		scheme = "http"
+	}
+
+	// Build absolute URLs using current request path to preserve URL encoding
 	// PageURL: HTML page URL for Open Graph (no query params)
 	// DirectURL: Binary file URL with ?raw=1 for img/video/audio tags
-	pageURL := c.Request.URL.Path
-	directURL := c.Request.URL.Path + "?raw=1"
+	host := c.Request.Host
+	pageURL := scheme + "://" + host + c.Request.URL.Path
+	directURL := scheme + "://" + host + c.Request.URL.Path + "?raw=1"
 
 	// Build view model
 	view := FileView{

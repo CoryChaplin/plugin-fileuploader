@@ -52,10 +52,12 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 
 	<!-- Open Graph pour prévisualisations sociales -->
 	<meta property="og:title" content="{{.Filename}}">
+	{{if .IsImage}}
+	<meta property="og:type" content="image">
+	<meta property="og:image" content="{{.DirectURL}}">
+	{{else}}
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="{{.PageURL}}">
-	{{if .IsImage}}
-	<meta property="og:image" content="{{.DirectURL}}">
 	{{end}}
 	<meta property="og:description" content="Fichier partagé - {{.FileSizeHuman}}">
 
