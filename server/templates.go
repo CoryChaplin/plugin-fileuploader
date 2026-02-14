@@ -51,15 +51,16 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<title>{{.Filename}}</title>
 
 	<!-- Open Graph pour prévisualisations sociales -->
-	<meta property="og:title" content="{{.Filename}}">
 	{{if .IsImage}}
-	<meta property="og:type" content="image">
+	<!-- Image only: minimal metadata for direct image display in Embed.ly -->
 	<meta property="og:image" content="{{.DirectURL}}">
 	{{else}}
+	<!-- Non-image: full metadata for rich preview card -->
+	<meta property="og:title" content="{{.Filename}}">
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="{{.PageURL}}">
-	{{end}}
 	<meta property="og:description" content="Fichier partagé - {{.FileSizeHuman}}">
+	{{end}}
 
 	<!-- Empêcher l'indexation (privacy) -->
 	<meta name="robots" content="noindex, nofollow">
