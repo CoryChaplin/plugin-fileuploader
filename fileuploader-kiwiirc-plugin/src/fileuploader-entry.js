@@ -8,6 +8,7 @@ import '@uppy/webcam/dist/style.css';
 import '@uppy/audio/dist/style.css';
 import '@uppy/image-editor/dist/style.css';
 
+import FileuploaderEmbed from './components/FileuploaderEmbed.vue';
 import sidebarFileList from './components/SidebarFileList.vue';
 import { MiB } from './constants/data-size';
 import { showDashboardOnDragEnter } from './handlers/show-dashboard-on-drag-enter';
@@ -78,4 +79,30 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
 
     // hide dashboard after last upload finishes
     uppy.on('complete', closeModalWhenUploadsCompleted(uppy, dashboard));
+
+    // --- URL Embed replacement for fileuploader links ---
+    let serverBase = kiwiApi.state.getSetting('settings.fileuploader.server') || '';
+    // Resolve relative paths (e.g. '/files/') to absolute URLs
+    try { serverBase = new URL(serverBase, window.location.origin).toString(); } catch (e) { /* noop */ }
+
+    if (serverBase) {
+        const origUrlEmbed = kiwiApi.require('components/UrlEmbed');
+        const OriginalUrlEmbed = Object.assign({}, origUrlEmbed);
+
+        const FileuploaderEmbedWrapper = {
+            functional: true,
+            props: ['url', 'showPin', 'iframeSandboxOptions'],
+            render(h, ctx) {
+                const url = ctx.props.url || '';
+                const isFileuploader = url.startsWith(serverBase);
+                const component = isFileuploader ? FileuploaderEmbed : OriginalUrlEmbed;
+                return h(component, {
+                    props: ctx.props,
+                    on: ctx.listeners,
+                });
+            },
+        };
+
+        kiwiApi.replaceModule('components/UrlEmbed', FileuploaderEmbedWrapper);
+    }
 });
