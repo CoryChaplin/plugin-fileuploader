@@ -29,8 +29,7 @@ export function uploadOnPaste(kiwiApi, uppy, dashboard) {
             const networkMaxLineLen =
                 network.ircClient.options.message_max_length;
             if (text.length > networkMaxLineLen || numLines(text) >= minLines) {
-                const msg =
-                    'You pasted a lot of text.\nWould you like to upload as a file instead?';
+                const msg = kiwiApi.i18n.t('paste_upload_prompt', { ns: 'plugin-fileuploader' });
                 if (window.confirm(msg)) {
                     // stop IrcInput from ingesting the pasted text
                     event.preventDefault();

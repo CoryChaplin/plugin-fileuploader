@@ -1,7 +1,7 @@
 <template>
     <div class="kiwi-fileuploader-embed">
         <div v-if="loading" class="kiwi-fileuploader-embed-loading">
-            Loading…
+            {{ $t('plugin-fileuploader:loading') }}
         </div>
         <template v-else>
             <!-- IMAGE -->
@@ -15,7 +15,7 @@
             <div v-else-if="contentType === 'video'" class="kiwi-fileuploader-embed-card kiwi-fileuploader-embed-video">
                 <video controls preload="metadata" @loadedmetadata="onMediaReady" @error="onMediaError">
                     <source :src="rawUrl">
-                    Your browser does not support video playback.
+                    {{ $t('plugin-fileuploader:video_not_supported') }}
                 </video>
             </div>
 
@@ -23,7 +23,7 @@
             <div v-else-if="contentType === 'audio'" class="kiwi-fileuploader-embed-card kiwi-fileuploader-embed-audio">
                 <audio controls preload="metadata" @canplay="onMediaReady" @error="onMediaError">
                     <source :src="rawUrl">
-                    Your browser does not support audio playback.
+                    {{ $t('plugin-fileuploader:audio_not_supported') }}
                 </audio>
             </div>
 

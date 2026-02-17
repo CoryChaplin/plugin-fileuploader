@@ -32,6 +32,32 @@ let scriptPath;
 
 /* global kiwi:true */
 kiwi.plugin('fileuploader', function(kiwiApi, log) {
+    // register plugin translations
+    kiwiApi.addTranslations('plugin-fileuploader', {
+        'en-us': {
+            loading: 'Loading\u2026',
+            video_not_supported: 'Your browser does not support video playback.',
+            audio_not_supported: 'Your browser does not support audio playback.',
+            no_files_uploaded: 'No files have recently been uploaded...',
+            preview_file: 'Preview File',
+            download_file: 'Download File',
+            shared_files: 'Shared Files',
+            paste_upload_prompt: 'You pasted a lot of text.\nWould you like to upload as a file instead?',
+            invalid_upload_target: 'Files can only be shared in channels or queries.',
+        },
+        'fr-fr': {
+            loading: 'Chargement\u2026',
+            video_not_supported: 'Votre navigateur ne supporte pas la lecture vid\u00e9o.',
+            audio_not_supported: 'Votre navigateur ne supporte pas la lecture audio.',
+            no_files_uploaded: 'Aucun fichier n\u2019a \u00e9t\u00e9 partag\u00e9 r\u00e9cemment\u2026',
+            preview_file: 'Aper\u00e7u du fichier',
+            download_file: 'T\u00e9l\u00e9charger le fichier',
+            shared_files: 'Fichiers partag\u00e9s',
+            paste_upload_prompt: 'Vous avez coll\u00e9 beaucoup de texte.\nVoulez-vous l\u2019envoyer en tant que fichier ?',
+            invalid_upload_target: 'Les fichiers ne peuvent \u00eatre partag\u00e9s que dans des salons ou des conversations priv\u00e9es.',
+        },
+    });
+
     // default settings
     setDefaultSetting(kiwiApi, 'fileuploader.allowedFileTypes', null);
     setDefaultSetting(kiwiApi, 'fileuploader.maxFileSize', 10 * MiB);
@@ -51,7 +77,7 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
     if (kiwiApi.state.setting('fileuploader.bufferInfoUploads')) {
         const sidebarComponent = new kiwiApi.Vue(sidebarFileList);
         sidebarComponent.$mount();
-        kiwiApi.addUi('about_buffer', sidebarComponent.$el, { title: 'Shared Files' });
+        kiwiApi.addUi('about_buffer', sidebarComponent.$el, { title: kiwiApi.i18n.t('shared_files', { ns: 'plugin-fileuploader' }) });
     }
 
     // set up main uppy object

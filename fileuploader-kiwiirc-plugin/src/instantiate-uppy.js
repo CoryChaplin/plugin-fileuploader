@@ -36,8 +36,7 @@ export default function instantiateUppy({
             const buffer = kiwiApi.state.getActiveBuffer();
             const isValidTarget = buffer && (buffer.isChannel() || buffer.isQuery());
             if (!isValidTarget) {
-                // TODO add translation
-                uppy.info('Files can only be shared in channels or queries.', 'error', 5000);
+                uppy.info(kiwiApi.i18n.t('invalid_upload_target', { ns: 'plugin-fileuploader' }), 'error', 5000);
                 return false;
             }
             file.kiwiFileUploaderTargetBuffer = buffer;
