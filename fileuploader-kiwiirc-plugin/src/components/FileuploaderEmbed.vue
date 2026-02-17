@@ -1,7 +1,7 @@
 <template>
     <div class="kiwi-fileuploader-embed">
         <div v-if="loading" class="kiwi-fileuploader-embed-loading">
-            {{ $t('plugin-fileuploader:loading') }}
+            {{ t('loading') }}
         </div>
         <template v-else>
             <!-- IMAGE -->
@@ -15,7 +15,7 @@
             <div v-else-if="contentType === 'video'" class="kiwi-fileuploader-embed-card kiwi-fileuploader-embed-video">
                 <video controls preload="metadata" @loadedmetadata="onMediaReady" @error="onMediaError">
                     <source :src="rawUrl">
-                    {{ $t('plugin-fileuploader:video_not_supported') }}
+                    {{ t('video_not_supported') }}
                 </video>
             </div>
 
@@ -23,7 +23,7 @@
             <div v-else-if="contentType === 'audio'" class="kiwi-fileuploader-embed-card kiwi-fileuploader-embed-audio">
                 <audio controls preload="metadata" @canplay="onMediaReady" @error="onMediaError">
                     <source :src="rawUrl">
-                    {{ $t('plugin-fileuploader:audio_not_supported') }}
+                    {{ t('audio_not_supported') }}
                 </audio>
             </div>
 
@@ -47,6 +47,7 @@
 <script>
 'kiwi public';
 
+/* global kiwi:true */
 import { getTypeByExt, getTypeByMime } from '@/utils/file-type';
 
 export default {
@@ -89,6 +90,9 @@ export default {
     },
 
     methods: {
+        t(key) {
+            return kiwi.i18n.t(key, { ns: 'plugin-fileuploader' });
+        },
         detectContent() {
             this.loading = true;
             this.contentType = 'other';

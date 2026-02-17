@@ -1,7 +1,7 @@
 <template>
     <div class="kiwi-filebuffer-container">
         <div v-if="!bufferFiles.length" class="kiwi-filebuffer-empty">
-            {{ $t('plugin-fileuploader:no_files_uploaded') }}
+            {{ t('no_files_uploaded') }}
         </div>
         <template v-else>
             <div
@@ -12,7 +12,7 @@
                 <div class="kiwi-filebuffer-details">
                     <a
                         :href="upload.url"
-                        :title="$t('plugin-fileuploader:preview_file')"
+                        :title="t('preview_file')"
                         class="kiwi-filebuffer-title"
                         @click.prevent.stop="loadContent(upload.url)"
                     >
@@ -37,7 +37,7 @@
                 <div class="kiwi-filebuffer-download">
                     <a
                         :href="upload.url"
-                        :title="$t('plugin-fileuploader:download_file')"
+                        :title="t('download_file')"
                         target="_blank"
                         download
                     >
@@ -110,6 +110,9 @@ export default {
         }
     },
     methods: {
+        t(key) {
+            return kiwi.i18n.t(key, { ns: 'plugin-fileuploader' });
+        },
         loadContent(url) {
             kiwi.emit('mediaviewer.show', url);
         },
