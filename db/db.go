@@ -40,8 +40,14 @@ func ConnectToDB(log *zerolog.Logger, dbConfig DBConfig) *DatabaseConnection {
 	// own, even across multiple processes accessing the same database file.
 	// https://www.sqlite.org/faq.html#q5
 
-	// we also don't enable the write-ahead-log because it does not work over a
-	// networked filesystem
+	// Enable WAL mode for sqlite3 to allow concurrent reads during writes.
+	// Note: WAL does not work over networked filesystems (NFS, SMB, etc.)
+	if dbConfig.DriverName == "sqlite3" {
+		_, err = db.Exec("PRAGMA journal_mode=WAL;")
+		if err != nil {
+			log.Warn().Err(err).Msg("Could not enable WAL mode")
+		}
+	}
 
 	return &DatabaseConnection{
 		db,
