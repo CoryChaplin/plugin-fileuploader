@@ -35,14 +35,14 @@ func ConnectToDB(log *zerolog.Logger, dbConfig DBConfig) *DatabaseConnection {
 		log.Fatal().Err(err).Msg("Could not open database")
 	}
 
-	// note that we don't do db.SetMaxOpenConns(1), as we don't want to limit
-	// read concurrency unnecessarily. sqlite will handle write locking on its
-	// own, even across multiple processes accessing the same database file.
-	// https://www.sqlite.org/faq.html#q5
-
-	// Enable WAL mode for sqlite3 to allow concurrent reads during writes.
-	// Note: WAL does not work over networked filesystems (NFS, SMB, etc.)
 	if dbConfig.DriverName == "sqlite3" {
+		// SQLite only supports one concurrent writer. Limit to a single
+		// connection so write contention is handled by Go's connection pool
+		// instead of returning "database is locked" errors.
+		db.SetMaxOpenConns(1)
+
+		// Enable WAL mode to allow concurrent reads during writes.
+		// Note: WAL does not work over networked filesystems (NFS, SMB, etc.)
 		_, err = db.Exec("PRAGMA journal_mode=WAL;")
 		if err != nil {
 			log.Warn().Err(err).Msg("Could not enable WAL mode")

@@ -81,7 +81,10 @@ func (store ShardedFileStore) NewUpload(ctx context.Context, info handler.FileIn
 	if info.ID == "" {
 		info.ID = Uid()
 	}
-	binPath := store.binPath(info.ID)
+	binPath, err := store.binPath(info.ID)
+	if err != nil {
+		return nil, err
+	}
 	info.Storage = map[string]string{
 		"Type": "filestore",
 		"Path": binPath,
@@ -151,7 +154,10 @@ func (store ShardedFileStore) GetUpload(ctx context.Context, id string) (handler
 		return nil, err
 	}
 
-	binPath := store.binPath(id)
+	binPath, err := store.binPath(id)
+	if err != nil {
+		return nil, err
+	}
 	infoPath := store.infoPath(id)
 	stat, err := os.Stat(binPath)
 	if err != nil {
@@ -185,17 +191,17 @@ func (store ShardedFileStore) AsConcatableUpload(upload handler.Upload) handler.
 }
 
 // binPath returns the path to the file storing the binary data.
-func (store ShardedFileStore) binPath(id string) string {
+func (store ShardedFileStore) binPath(id string) (string, error) {
 	hashBytes, isFinal, err := store.lookupHash(id)
 	if err != nil {
-		store.log.Fatal().Err(err).Msg("Could not look up hash")
+		return "", fmt.Errorf("could not look up hash: %w", err)
 	}
 
 	if !isFinal {
-		return store.incompleteBinPath(id)
+		return store.incompleteBinPath(id), nil
 	}
 
-	return store.completeBinPath(hashBytes)
+	return store.completeBinPath(hashBytes), nil
 }
 
 // infoPath returns the path to the .info file storing the upload's metadata.
@@ -411,7 +417,10 @@ func (store *ShardedFileStore) Terminate(id string) error {
 		return err
 	}
 
-	binPath := store.binPath(id)
+	binPath, err := store.binPath(id)
+	if err != nil {
+		return err
+	}
 
 	// delete .bin if there are no other upload records using it
 	if duplicates == 0 {
@@ -443,7 +452,11 @@ func (store *ShardedFileStore) Terminate(id string) error {
 }
 
 func (store *ShardedFileStore) hashFile(id string) ([]byte, error) {
-	f, err := os.Open(store.binPath(id))
+	binPath, err := store.binPath(id)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(binPath)
 	if err != nil {
 		return nil, err
 	}
