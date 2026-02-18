@@ -66,10 +66,13 @@ export default {
         rawUrl() {
             try {
                 const u = new URL(this.url);
+                if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+                    return '';
+                }
                 u.searchParams.set('raw', '1');
                 return u.toString();
             } catch (e) {
-                return this.url;
+                return '';
             }
         },
     },
@@ -147,8 +150,8 @@ export default {
             return fetch(this.url)
                 .then((resp) => resp.text())
                 .then((html) => {
-                    const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-                    this.pageTitle = m ? m[1].replace(/\s+/g, ' ').trim() : '';
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    this.pageTitle = (doc.title || '').replace(/\s+/g, ' ').trim();
                     this.loading = false;
                 })
                 .catch(() => {
@@ -209,7 +212,7 @@ export default {
 
 .kiwi-fileuploader-embed-image img {
     display: block;
-    max-width: 100%;
+    max-width: 600px;
     max-height: 400px;
     object-fit: contain;
 }
