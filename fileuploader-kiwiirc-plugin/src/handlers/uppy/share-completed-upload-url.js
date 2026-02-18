@@ -1,18 +1,31 @@
 import { friendlyUrl } from '../../utils/friendly-url';
 import { decodeMetadata } from '../../utils/decode-metadata';
 
+function headWithRetry(url, retries = 3, delay = 1000) {
+    return fetch(url, { method: 'HEAD' }).then((resp) => {
+        if ((resp.status === 200 || resp.status === 412) || retries <= 0) {
+            return resp;
+        }
+        return new Promise((resolve) => setTimeout(resolve, delay))
+            .then(() => headWithRetry(url, retries - 1, delay));
+    }).catch((err) => {
+        if (retries <= 0) throw err;
+        return new Promise((resolve) => setTimeout(resolve, delay))
+            .then(() => headWithRetry(url, retries - 1, delay));
+    });
+}
+
 export function shareCompletedUploadUrl(kiwiApi) {
     return function handleUploadSuccess(file, response) {
         const url = friendlyUrl(file, response);
-        fetch(url, {
-            method: 'HEAD',
-        }).then((headResp) => {
+        headWithRetry(url).then((headResp) => {
             if (headResp.status !== 200 && headResp.status !== 412) {
                 // old server instance responds with 412 Precondition Failed
                 return;
             }
             sendUploadEvent(kiwiApi, url, file, headResp);
         }).catch(() => {
+            // Share anyway after all retries are exhausted
             sendUploadEvent(kiwiApi, url, file);
         });
     };
