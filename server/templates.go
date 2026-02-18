@@ -1,10 +1,26 @@
 package server
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 )
+
+// faviconIcoBytes holds the decoded favicon.ico binary, served at /favicon.ico
+var faviconIcoBytes []byte
+
+func init() {
+	// Extract base64 payload from the data URI in the shortcut icon link tag
+	const dataURI = `data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABMLAAATCwAAAAAAAAAAAAB7ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP99URj/gFQc/4BVHf+AVR3/gFUd/4BVHf9/VBz/fFAW/3tOFP97ThT/fVAX/3xQFv97ThT/e04U/3tOFP96TRL/sJRx/9rOvv/WyLb/1si2/9bItv/WyLb/28+//6aIYf95TBH/ekwS/62Rbv+ig1r/eUwR/3tOFP97ThT/ekwS/8WxmP/MuqT/mnhL/5h1SP+YdUj/mXZK/93Rw/+7o4X/eUsQ/3lMEf/CrZL/sph2/3lLEP97ThT/e04U/3pMEv/FsZf/7efg/7OZd/95SxH/eUsQ/3pNEv/Sw6//u6SG/3hLEP95SxD/wayR/7KYdv95SxD/e04U/3tOFP96TBL/xbGY/8+/qf+UcEH/g1kj/4NZIv9+Uhr/0sOv/8Crj/+BVx//glcg/8aymf+ymHb/eUsQ/3tOFP97ThT/ekwS/72mif/l3dH/18q4/9nMu//Yy7n/n39U/8WymP/o4Nb/2cy7/9nLu//n39X/q45p/3lLEP97ThT/e04U/3tOFP+GXCf/kmw8/5JtPf+SbT3/kmw8/4NZIv+GXSj/km09/5NuPv+SbT7/kWs7/4JYIf97ThP/e04U/3tOFP97ThT/ek0T/3pMEv96TBL/ekwS/3pMEv97TRP/ek0T/3pMEf96TBL/ekwS/3pMEv97TRP/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==`
+	b64 := strings.TrimPrefix(dataURI, "data:image/x-icon;base64,")
+	var err error
+	faviconIcoBytes, err = base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		panic("invalid favicon.ico base64: " + err.Error())
+	}
+}
 
 // FileView contains data for rendering file preview HTML
 type FileView struct {

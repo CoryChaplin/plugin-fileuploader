@@ -132,6 +132,11 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 		return err
 	}
 
+	// Serve favicon.ico directly so browsers don't get a 404 for it
+	r.GET("/favicon.ico", func(c *gin.Context) {
+		c.Data(http.StatusOK, "image/x-icon", faviconIcoBytes)
+	})
+
 	handler, err := tusd.NewUnroutedHandler(config)
 	if err != nil {
 		return err
