@@ -56,7 +56,7 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
             shared_files: 'Fichiers partag\u00e9s',
             paste_upload_prompt: 'Vous avez coll\u00e9 beaucoup de texte.\nVoulez-vous l\u2019envoyer en tant que fichier ?',
             invalid_upload_target: 'Les fichiers ne peuvent \u00eatre partag\u00e9s que dans des salons ou des conversations priv\u00e9es.',
-            upload_message: 'Fichier envoy\u00e9 : %URL%',
+            upload_message: 'Nouveau fichier : %URL%',
         },
     });
 
