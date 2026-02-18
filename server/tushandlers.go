@@ -162,6 +162,15 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 	rg.Use(tusdMiddleware)
 	rg.Use(customizedCors(serv))
 	rg.Use(serv.fileuploaderMiddleware())
+	// Reject IDs shorter than the shard layer count to prevent panics in ShardedFileStore
+	minIDLen := serv.cfg.Storage.ShardLayers
+	rg.Use(func(c *gin.Context) {
+		if id := c.Param("id"); id != "" && len(id) < minIDLen {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		c.Next()
+	})
 	rg.POST("", serv.postFile(handler))
 
 	// Register a dummy handler for OPTIONS, without this the middleware's would not be called
