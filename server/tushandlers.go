@@ -137,6 +137,13 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 		c.Data(http.StatusOK, "image/x-icon", faviconIcoBytes)
 	})
 
+	// iOS/Safari requests these at the root regardless of <link> tags in HTML
+	appleIconHandler := func(c *gin.Context) {
+		c.Data(http.StatusOK, "image/png", appleTouchIconBytes)
+	}
+	r.GET("/apple-touch-icon.png", appleIconHandler)
+	r.GET("/apple-touch-icon-precomposed.png", appleIconHandler)
+
 	handler, err := tusd.NewUnroutedHandler(config)
 	if err != nil {
 		return err
