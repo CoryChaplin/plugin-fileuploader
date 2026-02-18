@@ -26,6 +26,9 @@ type FileView struct {
 
 	// Content for text files
 	TextContent string // Text file content (if IsText == true)
+
+	// Localisation
+	T *Translations
 }
 
 // humanizeBytes converts bytes to human-readable format
@@ -44,7 +47,7 @@ func humanizeBytes(bytes int64) string {
 
 // fileViewTemplate is the HTML template for file preview pages
 var fileViewTemplateHTML = `<!DOCTYPE html>
-<html lang="fr">
+<html lang="{{.T.Lang}}">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -65,7 +68,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<meta property="og:title" content="{{.Filename}}">
 	<meta property="og:type" content="website">
 	<meta property="og:url" content="{{.PageURL}}">
-	<meta property="og:description" content="Fichier partagé - {{.FileSizeHuman}}">
+	<meta property="og:description" content="{{.T.SharedFile}} - {{.FileSizeHuman}}">
 	{{end}}
 
 	<!-- Empêcher l'indexation (privacy) -->
@@ -314,12 +317,12 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			{{else if .IsVideo}}
 			<video controls preload="metadata" class="preview-video">
 				<source src="{{.DirectURL}}" type="{{.MimeType}}">
-				Votre navigateur ne supporte pas la lecture de vidéos.
+				{{.T.VideoNotSupported}}
 			</video>
 			{{else if .IsAudio}}
 			<audio controls preload="metadata" class="preview-audio">
 				<source src="{{.DirectURL}}" type="{{.MimeType}}">
-				Votre navigateur ne supporte pas la lecture audio.
+				{{.T.AudioNotSupported}}
 			</audio>
 			{{else if .IsPDF}}
 			<iframe src="{{.DirectURL}}" class="preview-pdf"></iframe>
@@ -345,35 +348,22 @@ func ParseFileViewTemplate() (*template.Template, error) {
 	return template.New("fileview").Parse(fileViewTemplateHTML)
 }
 
-// humanizeDurationFR converts a duration to a human-readable French string
-func humanizeDurationFR(d time.Duration) string {
-	hours := int(d.Hours())
-	if hours >= 24 && hours%24 == 0 {
-		days := hours / 24
-		if days == 1 {
-			return "1 jour"
-		}
-		return fmt.Sprintf("%d jours", days)
-	}
-	if hours == 1 {
-		return "1 heure"
-	}
-	return fmt.Sprintf("%d heures", hours)
-}
-
 // NotFoundView contains data for rendering the 404 error page
 type NotFoundView struct {
-	MaxAge           string // e.g. "24 heures"
-	IdentifiedMaxAge string // e.g. "7 jours"
+	MaxAge           string // e.g. "24 heures" / "24 hours"
+	IdentifiedMaxAge string // e.g. "7 jours" / "7 days"
+
+	// Localisation
+	T *Translations
 }
 
 // notFoundTemplateHTML is the HTML template for the 404 error page
 var notFoundTemplateHTML = `<!DOCTYPE html>
-<html lang="fr">
+<html lang="{{.T.Lang}}">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Fichier introuvable</title>
+	<title>{{.T.PageTitleNotFound}}</title>
 
 	<!-- Favicon -->
 	<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABMLAAATCwAAAAAAAAAAAAB7ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP99URj/gFQc/4BVHf+AVR3/gFUd/4BVHf9/VBz/fFAW/3tOFP97ThT/fVAX/3xQFv97ThT/e04U/3tOFP96TRL/sJRx/9rOvv/WyLb/1si2/9bItv/WyLb/28+//6aIYf95TBH/ekwS/62Rbv+ig1r/eUwR/3tOFP97ThT/ekwS/8WxmP/MuqT/mnhL/5h1SP+YdUj/mXZK/93Rw/+7o4X/eUsQ/3lMEf/CrZL/sph2/3lLEP97ThT/e04U/3pMEv/FsZf/7efg/7OZd/95SxH/eUsQ/3pNEv/Sw6//u6SG/3hLEP95SxD/wayR/7KYdv95SxD/e04U/3tOFP96TBL/xbGY/8+/qf+UcEH/g1kj/4NZIv9+Uhr/0sOv/8Crj/+BVx//glcg/8aymf+ymHb/eUsQ/3tOFP97ThT/ekwS/72mif/l3dH/18q4/9nMu//Yy7n/n39U/8WymP/o4Nb/2cy7/9nLu//n39X/q45p/3lLEP97ThT/e04U/3tOFP+GXCf/kmw8/5JtPf+SbT3/kmw8/4NZIv+GXSj/km09/5NuPv+SbT7/kWs7/4JYIf97ThP/e04U/3tOFP97ThT/ek0T/3pMEv96TBL/ekwS/3pMEv97TRP/ek0T/3pMEf96TBL/ekwS/3pMEv97TRP/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/e04U/3tOFP97ThT/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==" type="image/x-icon">
@@ -587,14 +577,14 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 		<div class="error-card">
 			<div class="error-icon"><i class="fa fa-hourglass-end"></i></div>
 			<div class="error-code">404</div>
-			<h1 class="error-title">Ce fichier n'est plus disponible</h1>
+			<h1 class="error-title">{{.T.NotFoundHeading}}</h1>
 			<p class="error-message">
-				Les fichiers sont conservés <strong>{{.MaxAge}}</strong><br>
-				({{.IdentifiedMaxAge}} pour les utilisateurs connectés).<br>
-				Ce lien a probablement expiré.
+				{{.T.FilesKeptFor}} <strong>{{.MaxAge}}</strong><br>
+				({{.IdentifiedMaxAge}} {{.T.ForConnected}}).<br>
+				{{.T.LinkExpired}}
 			</p>
 			<a href="https://chat.europnet.org" class="btn-back">
-				<i class="fa fa-comments"></i>&nbsp; Retourner sur le chat
+				<i class="fa fa-comments"></i>&nbsp; {{.T.ReturnToChat}}
 			</a>
 		</div>
 	</div>

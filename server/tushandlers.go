@@ -325,9 +325,11 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 
 // serveHtml404 renders the 404 error page for browsers
 func (serv *UploadServer) serveHtml404(c *gin.Context) {
+	t := detectLanguage(c.GetHeader("Accept-Language"))
 	view := NotFoundView{
-		MaxAge:           humanizeDurationFR(serv.cfg.Expiration.MaxAge.Duration),
-		IdentifiedMaxAge: humanizeDurationFR(serv.cfg.Expiration.IdentifiedMaxAge.Duration),
+		MaxAge:           humanizeDuration(serv.cfg.Expiration.MaxAge.Duration, t),
+		IdentifiedMaxAge: humanizeDuration(serv.cfg.Expiration.IdentifiedMaxAge.Duration, t),
+		T:                t,
 	}
 	c.Status(http.StatusNotFound)
 	if err := serv.notFoundTemplate.Execute(c.Writer, view); err != nil {
@@ -377,6 +379,7 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		IsAudio:       strings.HasPrefix(mimeType, "audio/"),
 		IsPDF:         mimeType == "application/pdf",
 		IsText:        strings.HasPrefix(mimeType, "text/"),
+		T:             detectLanguage(c.GetHeader("Accept-Language")),
 	}
 
 	// Parse expiration from metadata
