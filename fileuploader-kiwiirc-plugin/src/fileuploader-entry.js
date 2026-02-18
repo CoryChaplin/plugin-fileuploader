@@ -44,6 +44,7 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
             shared_files: 'Shared Files',
             paste_upload_prompt: 'You pasted a lot of text.\nWould you like to upload as a file instead?',
             invalid_upload_target: 'Files can only be shared in channels or queries.',
+            upload_message: 'Uploaded file: %URL%',
         },
         'fr-fr': {
             loading: 'Chargement\u2026',
@@ -55,6 +56,7 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
             shared_files: 'Fichiers partag\u00e9s',
             paste_upload_prompt: 'Vous avez coll\u00e9 beaucoup de texte.\nVoulez-vous l\u2019envoyer en tant que fichier ?',
             invalid_upload_target: 'Les fichiers ne peuvent \u00eatre partag\u00e9s que dans des salons ou des conversations priv\u00e9es.',
+            upload_message: 'Fichier envoy\u00e9 : %URL%',
         },
     });
 
@@ -66,7 +68,7 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
     setDefaultSetting(kiwiApi, 'fileuploader.textPasteNeverPrompt', false);
     setDefaultSetting(kiwiApi, 'fileuploader.bufferInfoUploads', true);
     setDefaultSetting(kiwiApi, 'fileuploader.localePath', '');
-    setDefaultSetting(kiwiApi, 'fileuploader.uploadMessage', 'Uploaded file: %URL%');
+    setDefaultSetting(kiwiApi, 'fileuploader.uploadMessage', kiwiApi.i18n.t('upload_message', { ns: 'plugin-fileuploader' }));
 
     // add button to input bar
     const uploadFileButton = document.createElement('i');
