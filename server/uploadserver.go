@@ -28,6 +28,7 @@ type UploadServer struct {
 	expirer             *expirer.Expirer
 	httpServer          *http.Server
 	htmlTemplate        *template.Template
+	notFoundTemplate    *template.Template
 	startedMu           sync.Mutex
 	started             chan struct{}
 	tusEventBroadcaster *events.TusEventBroadcaster
@@ -81,6 +82,13 @@ func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
 	serv.htmlTemplate, err = ParseFileViewTemplate()
 	if err != nil {
 		serv.log.Error().Err(err).Msg("Failed to parse HTML template")
+		return err
+	}
+
+	// Initialize HTML template for 404 error page
+	serv.notFoundTemplate, err = ParseNotFoundTemplate()
+	if err != nil {
+		serv.log.Error().Err(err).Msg("Failed to parse 404 template")
 		return err
 	}
 

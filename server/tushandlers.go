@@ -247,7 +247,17 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 		// Load file metadata from storage
 		upload, err := serv.store.GetUpload(c.Request.Context(), id)
 		if err != nil {
-			// File not found or error loading
+			// File not found or error loading — serve HTML 404 for browsers
+			accept := c.GetHeader("Accept")
+			userAgent := c.GetHeader("User-Agent")
+			wantsHtml := strings.Contains(accept, "text/html")
+			isBrowser := strings.Contains(userAgent, "Mozilla") ||
+				strings.Contains(userAgent, "Chrome") ||
+				strings.Contains(userAgent, "Safari")
+			if wantsHtml || (isBrowser && accept == "*/*") {
+				serv.serveHtml404(c)
+				return
+			}
 			handler.GetFile(c.Writer, c.Request)
 			return
 		}
@@ -310,6 +320,18 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 			// Serve raw file via TUS handler
 			handler.GetFile(c.Writer, c.Request)
 		}
+	}
+}
+
+// serveHtml404 renders the 404 error page for browsers
+func (serv *UploadServer) serveHtml404(c *gin.Context) {
+	view := NotFoundView{
+		MaxAge:           humanizeDurationFR(serv.cfg.Expiration.MaxAge.Duration),
+		IdentifiedMaxAge: humanizeDurationFR(serv.cfg.Expiration.IdentifiedMaxAge.Duration),
+	}
+	c.Status(http.StatusNotFound)
+	if err := serv.notFoundTemplate.Execute(c.Writer, view); err != nil {
+		serv.log.Error().Err(err).Msg("Failed to render 404 template")
 	}
 }
 
