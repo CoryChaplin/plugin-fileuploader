@@ -352,21 +352,8 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 	}
 	upload.info.MetaData["expires"] = strconv.FormatInt(expires, 10)
 
-	// update hash in uploads table
-	err = db.UpdateRow(upload.store.DBConn.DB, `
-		UPDATE uploads
-		SET sha256sum = ?,
-		expires_at = ?
-		WHERE id = ?
-	`, hash, expires, upload.info.ID)
-	if err != nil {
-		upload.store.log.Error().
-			Err(err).
-			Msg("Failed to update db")
-		return err
-	}
-
-	// relocate file
+	// Relocate file before updating the DB hash, so that binPath() never
+	// resolves to the complete path before the file is actually there.
 	newPath := upload.store.completeBinPath(hash)
 	os.MkdirAll(filepath.Dir(newPath), defaultDirectoryPerm)
 
@@ -379,9 +366,10 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 				Str("oldPath", oldPath).
 				Str("newPath", newPath).
 				Msg("Failed to rename")
+			return err
 		}
 	} else {
-		// file already exists just remove the tempoary upload
+		// file already exists just remove the temporary upload
 		err = os.Remove(oldPath)
 		if err != nil {
 			upload.store.log.Error().
@@ -389,6 +377,20 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 				Str("oldPath", oldPath).
 				Msg("Failed to remove")
 		}
+	}
+
+	// update hash in uploads table (after the file is in place)
+	err = db.UpdateRow(upload.store.DBConn.DB, `
+		UPDATE uploads
+		SET sha256sum = ?,
+		expires_at = ?
+		WHERE id = ?
+	`, hash, expires, upload.info.ID)
+	if err != nil {
+		upload.store.log.Error().
+			Err(err).
+			Msg("Failed to update db")
+		return err
 	}
 
 	upload.info.Storage["Path"] = newPath
