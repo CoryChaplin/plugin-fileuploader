@@ -254,14 +254,19 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 		id := c.Param("id")
 		filename := c.Param("filename")
 
+		// serveRaw rewrites the URL to strip any filename before forwarding to the
+		// TUS handler. tusd extracts the file ID from the last URL path segment, so
+		// leaving the filename in place causes it to use the filename as the ID,
+		// which can be too short for the ShardedFileStore and trigger a panic.
+		routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
+		serveRaw := func() {
+			c.Request.URL.Path = path.Join(routePrefix, id)
+			handler.GetFile(c.Writer, c.Request)
+		}
+
 		// If ?raw=1 query parameter is present, always serve binary
 		if c.Query("raw") == "1" {
-			// Rewrite path to remove filename for TUS handler
-			if filename != "" {
-				routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
-				c.Request.URL.Path = path.Join(routePrefix, id)
-			}
-			handler.GetFile(c.Writer, c.Request)
+			serveRaw()
 			return
 		}
 
@@ -279,14 +284,14 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 				serv.serveHtml404(c)
 				return
 			}
-			handler.GetFile(c.Writer, c.Request)
+			serveRaw()
 			return
 		}
 
 		info, err := upload.GetInfo(c.Request.Context())
 		if err != nil {
 			// Error getting file info, fall back to binary
-			handler.GetFile(c.Writer, c.Request)
+			serveRaw()
 			return
 		}
 
@@ -322,7 +327,7 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 
 		if !isViewable {
 			// Always serve as binary for non-viewable files
-			handler.GetFile(c.Writer, c.Request)
+			serveRaw()
 			return
 		}
 
@@ -339,7 +344,7 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 			serv.serveHtmlWrapper(c, handler, upload, info)
 		} else {
 			// Serve raw file via TUS handler
-			handler.GetFile(c.Writer, c.Request)
+			serveRaw()
 		}
 	}
 }
@@ -420,6 +425,8 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 				Err(err).
 				Str("id", info.ID).
 				Msg("Failed to read text content, serving as binary")
+			routePrefix, _ := routePrefixFromBasePath(serv.cfg.Server.BasePath)
+			c.Request.URL.Path = path.Join(routePrefix, info.ID)
 			handler.GetFile(c.Writer, c.Request)
 			return
 		}
