@@ -236,8 +236,7 @@ export default {
 
 /* TEXT */
 .kiwi-fileuploader-embed-text {
-    max-width: 600px;
-    width: 600px;
+    max-width: 100%;
 }
 
 .kiwi-fileuploader-embed-text pre {
