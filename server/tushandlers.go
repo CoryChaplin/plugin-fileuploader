@@ -405,6 +405,7 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		IsAudio:       strings.HasPrefix(mimeType, "audio/"),
 		IsPDF:         mimeType == "application/pdf",
 		IsText:        strings.HasPrefix(mimeType, "text/"),
+		IsMarkdown:    isMarkdownFile(filename, mimeType),
 		T:             detectLanguage(c.GetHeader("Accept-Language")),
 	}
 
@@ -416,8 +417,8 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		}
 	}
 
-	// For text files, load content
-	if view.IsText {
+	// For text/markdown files, load content
+	if view.IsText || view.IsMarkdown {
 		textContent, err := serv.readTextContent(upload, info.Size)
 		if err != nil {
 			// If error (file too large, non-UTF8), fallback to binary download
@@ -443,6 +444,16 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		serv.log.Error().Err(err).Msg("Failed to render HTML template")
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}
+}
+
+// isMarkdownFile returns true if the file should be rendered as Markdown
+// based on its extension (.md, .markdown) or MIME type (text/markdown).
+func isMarkdownFile(filename, mimeType string) bool {
+	if mimeType == "text/markdown" {
+		return true
+	}
+	lower := strings.ToLower(filename)
+	return strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".markdown")
 }
 
 // readTextContent reads and validates UTF-8 text file content

@@ -45,11 +45,12 @@ type FileView struct {
 	DirectURL     string    // URL for direct download with ?raw=1
 
 	// Flags for conditional display
-	IsImage bool
-	IsVideo bool
-	IsAudio bool
-	IsPDF   bool
-	IsText  bool
+	IsImage    bool
+	IsVideo    bool
+	IsAudio    bool
+	IsPDF      bool
+	IsText     bool
+	IsMarkdown bool // Markdown-formatted text (.md, .markdown, .txt)
 
 	// Content for text files
 	TextContent string // Text file content (if IsText == true)
@@ -102,7 +103,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<meta name="robots" content="noindex, nofollow">
 
 	<!-- Security headers -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com; style-src 'unsafe-inline'; media-src 'self'; img-src 'self' data: https://chat.europnet.org; font-src https://cdnjs.cloudflare.com; connect-src https://www.google-analytics.com https://www.googletagmanager.com;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com https://cdn.jsdelivr.net; style-src 'unsafe-inline'; media-src 'self'; img-src 'self' data: https://chat.europnet.org; font-src https://cdnjs.cloudflare.com; connect-src https://www.google-analytics.com https://www.googletagmanager.com;">
 
 	<!-- Font Awesome for navbar icons -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -256,6 +257,111 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 		}
 
+		.preview-markdown {
+			background: #fff;
+			padding: 30px 40px;
+			border-radius: 4px;
+			max-height: calc(100vh - 120px);
+			overflow-y: auto;
+			text-align: left;
+			border: 1px solid #ddd;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+			font-size: 15px;
+			line-height: 1.7;
+			color: #1a1a1a;
+		}
+
+		.preview-markdown h1, .preview-markdown h2, .preview-markdown h3,
+		.preview-markdown h4, .preview-markdown h5, .preview-markdown h6 {
+			margin-top: 1.2em;
+			margin-bottom: 0.6em;
+			font-weight: 600;
+			line-height: 1.3;
+		}
+
+		.preview-markdown h1 { font-size: 1.8em; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+		.preview-markdown h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+		.preview-markdown h3 { font-size: 1.25em; }
+
+		.preview-markdown p { margin-bottom: 1em; }
+
+		.preview-markdown code {
+			background: #f0f0f0;
+			padding: 0.2em 0.4em;
+			border-radius: 3px;
+			font-size: 0.9em;
+			font-family: 'Courier New', Courier, monospace;
+		}
+
+		.preview-markdown pre {
+			background: #f5f5f5;
+			padding: 16px;
+			border-radius: 4px;
+			overflow-x: auto;
+			border: 1px solid #ddd;
+			margin-bottom: 1em;
+		}
+
+		.preview-markdown pre code {
+			background: none;
+			padding: 0;
+			font-size: 0.85em;
+			line-height: 1.5;
+		}
+
+		.preview-markdown blockquote {
+			border-left: 4px solid #ddd;
+			padding: 0.5em 1em;
+			margin: 0 0 1em 0;
+			color: #555;
+			background: #f9f9f9;
+		}
+
+		.preview-markdown ul, .preview-markdown ol {
+			margin-bottom: 1em;
+			padding-left: 2em;
+		}
+
+		.preview-markdown li { margin-bottom: 0.3em; }
+
+		.preview-markdown table {
+			border-collapse: collapse;
+			margin-bottom: 1em;
+			width: 100%;
+		}
+
+		.preview-markdown th, .preview-markdown td {
+			border: 1px solid #ddd;
+			padding: 8px 12px;
+			text-align: left;
+		}
+
+		.preview-markdown th {
+			background: #f5f5f5;
+			font-weight: 600;
+		}
+
+		.preview-markdown img {
+			max-width: 100%;
+			height: auto;
+		}
+
+		.preview-markdown a {
+			color: #0366d6;
+			text-decoration: none;
+		}
+
+		.preview-markdown a:hover {
+			text-decoration: underline;
+		}
+
+		.preview-markdown hr {
+			border: none;
+			border-top: 1px solid #ddd;
+			margin: 1.5em 0;
+		}
+
 		/* Dark mode support */
 		@media (prefers-color-scheme: dark) {
 			body {
@@ -267,6 +373,47 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 				background: #1a1a1a;
 				color: #e0e0e0;
 				border-color: #444;
+			}
+
+			.preview-markdown {
+				background: #1e1e1e;
+				color: #d4d4d4;
+				border-color: #444;
+			}
+
+			.preview-markdown h1, .preview-markdown h2 {
+				border-bottom-color: #444;
+			}
+
+			.preview-markdown code {
+				background: #2d2d2d;
+			}
+
+			.preview-markdown pre {
+				background: #2d2d2d;
+				border-color: #444;
+			}
+
+			.preview-markdown blockquote {
+				border-left-color: #555;
+				background: #252525;
+				color: #aaa;
+			}
+
+			.preview-markdown th {
+				background: #2d2d2d;
+			}
+
+			.preview-markdown th, .preview-markdown td {
+				border-color: #444;
+			}
+
+			.preview-markdown a {
+				color: #58a6ff;
+			}
+
+			.preview-markdown hr {
+				border-top-color: #444;
 			}
 
 			.preview-image,
@@ -300,6 +447,11 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			}
 
 			.preview-text {
+				max-height: calc(100vh - 90px);
+			}
+
+			.preview-markdown {
+				padding: 16px 20px;
 				max-height: calc(100vh - 90px);
 			}
 		}
@@ -353,6 +505,17 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			</audio>
 			{{else if .IsPDF}}
 			<iframe src="{{.DirectURL}}" class="preview-pdf"></iframe>
+			{{else if .IsMarkdown}}
+			<div id="markdown-body" class="preview-markdown"></div>
+			<textarea id="markdown-source" style="display:none">{{.TextContent}}</textarea>
+			<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+			<script>
+				(function() {
+					var src = document.getElementById('markdown-source').value;
+					marked.setOptions({breaks: true});
+					document.getElementById('markdown-body').innerHTML = marked.parse(src);
+				})();
+			</script>
 			{{else if .IsText}}
 			<pre class="preview-text">{{.TextContent}}</pre>
 			{{end}}
