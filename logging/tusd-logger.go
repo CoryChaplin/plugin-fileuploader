@@ -28,7 +28,11 @@ func handleTusEvent(log *zerolog.Logger, event *events.TusEvent) {
 		Int64("size", event.Info.Size).
 		Int64("offset", event.Info.Offset)
 
-	metadataJSON, err := json.Marshal(event.Info.MetaData)
+	metaCopy := make(map[string]string, len(event.Info.MetaData))
+	for k, v := range event.Info.MetaData {
+		metaCopy[k] = v
+	}
+	metadataJSON, err := json.Marshal(metaCopy)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to serialize metadata")
 	}
