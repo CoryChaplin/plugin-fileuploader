@@ -28,7 +28,7 @@ func GinLogger(log *zerolog.Logger) gin.HandlerFunc {
 		case 500 <= status && status <= 599:
 			logEvent = log.Error()
 		default:
-			panic("Invalid status code")
+			logEvent = log.Warn()
 		}
 
 		logEvent.
