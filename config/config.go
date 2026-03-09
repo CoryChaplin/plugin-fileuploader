@@ -57,6 +57,11 @@ type Config struct {
 	PreFinishCommands  []PreFinishCommand
 	JwtSecretsByIssuer map[string]string
 	Loggers            []LoggerConfig
+	Ads                struct {
+		Mode       string   // "all" | "none" | "allowlist"
+		AllowedIPs []string // used when Mode == "allowlist"
+		AdsTxtURL  string   // e.g. "https://srv.adstxtmanager.com/19390/europnet.org"
+	}
 }
 
 type lockingWriter struct {

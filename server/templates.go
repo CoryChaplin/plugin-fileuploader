@@ -55,6 +55,9 @@ type FileView struct {
 	// Content for text files
 	TextContent string // Text file content (if IsText == true)
 
+	// Ads
+	ShowAds bool // true if ads should be shown to this visitor
+
 	// Localisation
 	T *Translations
 }
@@ -103,7 +106,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<meta name="robots" content="noindex, nofollow">
 
 	<!-- Security headers -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdnjs.cloudflare.com; media-src 'self'; img-src 'self' data: https://chat.europnet.org; font-src https://cdnjs.cloudflare.com; connect-src https://*.google-analytics.com https://www.googletagmanager.com;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com https://cdn.jsdelivr.net https://cmp.gatekeeperconsent.com https://the.gatekeeperconsent.com https://privacy.gatekeeperconsent.com https://www.ezojs.com https://go.ezodn.com https://cdn.id5-sync.com; style-src 'unsafe-inline' https://cdnjs.cloudflare.com; media-src 'self'; img-src 'self' data: https://chat.europnet.org https://*.ezodn.com https://*.ezoic.com https://*.ezoic.net http://g.ezoic.net https://id5-sync.com; font-src https://cdnjs.cloudflare.com; connect-src https://*.google-analytics.com https://www.googletagmanager.com https://*.ezodn.com https://*.ezoic.com https://*.ezoic.net https://cmp.gatekeeperconsent.com https://the.gatekeeperconsent.com https://privacy.gatekeeperconsent.com https://id5-sync.com https://*.id5-sync.com; frame-src https://*.ezoic.com https://*.ezoic.net;">
 
 	<!-- Font Awesome for navbar icons -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -202,10 +205,13 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 		.container {
 			flex: 1;
 			display: flex;
+			flex-direction: column;
 			align-items: center;
 			justify-content: center;
 			padding: 70px 20px 20px;
 		}
+
+		{{template "ads-css" .}}
 
 		main {
 			width: 100%;
@@ -430,6 +436,8 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 				padding: 60px 10px 10px;
 			}
 
+			{{template "ads-css-mobile" .}}
+
 			#navbar .nav {
 				display: none;
 			}
@@ -456,6 +464,8 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			}
 		}
 	</style>
+
+	{{template "ads-head" .}}
 </head>
 <body>
 	<!-- EuropNet Navbar -->
@@ -490,36 +500,17 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	</div>
 
 	<div class="container">
-		<main>
-			{{if .IsImage}}
-			<img src="{{.DirectURL}}" alt="{{.Filename}}" class="preview-image">
-			{{else if .IsVideo}}
-			<video controls preload="metadata" class="preview-video">
-				<source src="{{.DirectURL}}" type="{{.MimeType}}">
-				{{.T.VideoNotSupported}}
-			</video>
-			{{else if .IsAudio}}
-			<audio controls preload="metadata" class="preview-audio">
-				<source src="{{.DirectURL}}" type="{{.MimeType}}">
-				{{.T.AudioNotSupported}}
-			</audio>
-			{{else if .IsPDF}}
-			<iframe src="{{.DirectURL}}" class="preview-pdf"></iframe>
-			{{else if .IsMarkdown}}
-			<div id="markdown-body" class="preview-markdown"></div>
-			<textarea id="markdown-source" style="display:none">{{.TextContent}}</textarea>
-			<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
-			<script>
-				(function() {
-					var src = document.getElementById('markdown-source').value;
-					marked.setOptions({breaks: true});
-					document.getElementById('markdown-body').innerHTML = marked.parse(src);
-				})();
-			</script>
-			{{else if .IsText}}
-			<pre class="preview-text">{{.TextContent}}</pre>
-			{{end}}
-		</main>
+		{{if .ShowAds}}
+		<div class="content-row">
+			<div class="ad-sidebar ad-sidebar-left" id="ezoic-pub-ad-placeholder-118"></div>
+			<main>{{template "file-content" .}}</main>
+			<div class="ad-sidebar ad-sidebar-right" id="ezoic-pub-ad-placeholder-121"></div>
+		</div>
+		<div class="ad-below-content" id="ezoic-pub-ad-placeholder-119"></div>
+		<div class="ad-below-content" id="ezoic-pub-ad-placeholder-120"></div>
+		{{else}}
+		<main>{{template "file-content" .}}</main>
+		{{end}}
 	</div>
 
 	<!-- Google tag (gtag.js) -->
@@ -530,12 +521,19 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 		gtag('js', new Date());
 		gtag('config', 'G-69ZMVPJMVF');
 	</script>
+
+	{{template "ads-scripts" .}}
 </body>
 </html>`
 
-// ParseFileViewTemplate parses and returns the file view template
+// ParseFileViewTemplate parses and returns the file view template,
+// composed with the ad sub-templates defined in ads_template.go.
 func ParseFileViewTemplate() (*template.Template, error) {
-	return template.New("fileview").Parse(fileViewTemplateHTML)
+	t, err := template.New("fileview").Parse(fileViewTemplateHTML)
+	if err != nil {
+		return nil, err
+	}
+	return t.Parse(adsSubTemplates)
 }
 
 // NotFoundView contains data for rendering the 404 error page

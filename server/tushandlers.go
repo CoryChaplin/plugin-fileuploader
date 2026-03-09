@@ -144,6 +144,18 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 	r.GET("/apple-touch-icon.png", appleIconHandler)
 	r.GET("/apple-touch-icon-precomposed.png", appleIconHandler)
 
+	// Serve cached ads.txt if configured
+	if serv.adsTxt != nil {
+		r.GET("/ads.txt", func(c *gin.Context) {
+			content := serv.adsTxt.Get()
+			if content == nil {
+				c.Status(http.StatusServiceUnavailable)
+				return
+			}
+			c.Data(http.StatusOK, "text/plain; charset=utf-8", content)
+		})
+	}
+
 	handler, err := tusd.NewUnroutedHandler(config)
 	if err != nil {
 		return err
@@ -392,6 +404,21 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 	pageURL := scheme + "://" + host + c.Request.URL.Path
 	directURL := scheme + "://" + host + c.Request.URL.Path + "?raw=1"
 
+	// Determine whether to show ads for this visitor
+	showAds := false
+	switch serv.cfg.Ads.Mode {
+	case "all":
+		showAds = true
+	case "allowlist":
+		clientIP := c.ClientIP()
+		for _, allowed := range serv.cfg.Ads.AllowedIPs {
+			if clientIP == allowed {
+				showAds = true
+				break
+			}
+		}
+	}
+
 	// Build view model
 	view := FileView{
 		Filename:      filename,
@@ -406,6 +433,7 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		IsPDF:         mimeType == "application/pdf",
 		IsText:        strings.HasPrefix(mimeType, "text/"),
 		IsMarkdown:    isMarkdownFile(filename, mimeType),
+		ShowAds:       showAds,
 		T:             detectLanguage(c.GetHeader("Accept-Language")),
 	}
 

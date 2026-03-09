@@ -1,0 +1,214 @@
+package server
+
+// adsSubTemplates defines named sub-templates for Ezoic ad integration.
+// They are parsed together with fileViewTemplateHTML in ParseFileViewTemplate().
+// All blocks are guarded by {{if .ShowAds}} so they produce no output when ads
+// are disabled, regardless of which template calls them.
+var adsSubTemplates = `
+
+{{define "ads-head"}}{{if .ShowAds}}
+	<!-- Ezoic Consent + Standalone -->
+	<script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
+	<script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script>
+	<script>
+		window.ezstandalone = window.ezstandalone || {};
+		ezstandalone.cmd = ezstandalone.cmd || [];
+	</script>
+	<script async src="https://www.ezojs.com/ezoic/sa.min.js"></script>
+{{end}}{{end}}
+
+{{define "ads-css"}}{{if .ShowAds}}
+		.content-row {
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			width: 100%;
+			max-width: 1600px;
+		}
+
+		.ad-sidebar {
+			flex-shrink: 0;
+			width: 0;
+			overflow: hidden;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.ad-sidebar.visible { width: 160px; }
+		.ad-sidebar.visible.wide { width: 300px; }
+
+		.ad-below-content {
+			display: none;
+			width: 100%;
+			max-width: 970px;
+			margin-top: 16px;
+			text-align: center;
+		}
+
+		.ad-below-content.visible { display: block; }
+{{end}}{{end}}
+
+{{define "ads-css-mobile"}}{{if .ShowAds}}
+			.ad-sidebar {
+				display: none !important;
+			}
+{{end}}{{end}}
+
+{{define "file-content"}}
+			{{if .IsImage}}
+			<img src="{{.DirectURL}}" alt="{{.Filename}}" class="preview-image">
+			{{else if .IsVideo}}
+			<video controls preload="metadata" class="preview-video">
+				<source src="{{.DirectURL}}" type="{{.MimeType}}">
+				{{.T.VideoNotSupported}}
+			</video>
+			{{else if .IsAudio}}
+			<audio controls preload="metadata" class="preview-audio">
+				<source src="{{.DirectURL}}" type="{{.MimeType}}">
+				{{.T.AudioNotSupported}}
+			</audio>
+			{{else if .IsPDF}}
+			<iframe src="{{.DirectURL}}" class="preview-pdf"></iframe>
+			{{else if .IsMarkdown}}
+			<div id="markdown-body" class="preview-markdown"></div>
+			<textarea id="markdown-source" style="display:none">{{.TextContent}}</textarea>
+			<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+			<script>
+				(function() {
+					var src = document.getElementById('markdown-source').value;
+					marked.setOptions({breaks: true});
+					document.getElementById('markdown-body').innerHTML = marked.parse(src);
+				})();
+			</script>
+			{{else if .IsText}}
+			<pre class="preview-text">{{.TextContent}}</pre>
+			{{end}}
+{{end}}
+
+{{define "ads-scripts"}}{{if .ShowAds}}
+	<!-- Ezoic ad placement decision engine -->
+	<script>
+	(function() {
+		'use strict';
+
+		var MIN_SIDE_WIDTH    = 160;   // px each side minimum for skyscraper
+		var WIDE_SIDE_WIDTH   = 300;   // px each side for half-page
+		var MIN_SIDE_HEIGHT   = 400;   // px content height to justify side ads
+		var MIN_BELOW_WIDTH   = 728;   // px viewport width for leaderboard
+		var MIN_BELOW_HEIGHT  = 90;    // px vertical space needed below content
+		var MOBILE_BREAKPOINT = 768;
+
+		var sidebarLeft  = document.getElementById('ezoic-pub-ad-placeholder-118');
+		var sidebarRight = document.getElementById('ezoic-pub-ad-placeholder-121');
+		var belowDesktop = document.getElementById('ezoic-pub-ad-placeholder-119');
+		var belowMobile  = document.getElementById('ezoic-pub-ad-placeholder-120');
+		var mainEl       = document.querySelector('main');
+
+		if (!mainEl) return;
+
+		function getAvailableSpaceEachSide() {
+			var mainRect = mainEl.getBoundingClientRect();
+			var usableWidth = window.innerWidth - 40; // 20px padding each side
+			return (usableWidth - mainRect.width) / 2;
+		}
+
+		function getAvailableSpaceBelow() {
+			var mainRect = mainEl.getBoundingClientRect();
+			return window.innerHeight - mainRect.bottom - 20;
+		}
+
+		function showSideAds() {
+			var availSide = getAvailableSpaceEachSide();
+			var useWide = availSide >= WIDE_SIDE_WIDTH;
+			if (sidebarLeft)  { sidebarLeft.classList.add('visible');  if (useWide) sidebarLeft.classList.add('wide');  }
+			if (sidebarRight) { sidebarRight.classList.add('visible'); if (useWide) sidebarRight.classList.add('wide'); }
+			ezstandalone.cmd.push(function() { ezstandalone.showAds(118, 121); });
+		}
+
+		function showBelowDesktopAd() {
+			if (belowDesktop) belowDesktop.classList.add('visible');
+			ezstandalone.cmd.push(function() { ezstandalone.showAds(119); });
+		}
+
+		function showMobileAd() {
+			if (belowMobile) belowMobile.classList.add('visible');
+			ezstandalone.cmd.push(function() { ezstandalone.showAds(120); });
+		}
+
+		function tryBelowDesktopAd() {
+			if (window.innerWidth >= MIN_BELOW_WIDTH && getAvailableSpaceBelow() >= MIN_BELOW_HEIGHT) {
+				showBelowDesktopAd();
+			}
+		}
+
+		function decide(orientation) {
+			var isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+
+			if (isMobile) {
+				showMobileAd();
+				return;
+			}
+
+			if (orientation === 'portrait') {
+				var availSide = getAvailableSpaceEachSide();
+				var mainRect = mainEl.getBoundingClientRect();
+				if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) {
+					showSideAds();
+				} else {
+					tryBelowDesktopAd();
+				}
+			} else {
+				// landscape or fullwidth
+				tryBelowDesktopAd();
+			}
+		}
+
+		{{if .IsImage}}
+		(function() {
+			var img = document.querySelector('.preview-image');
+			if (!img) return;
+			function onLoad() {
+				if (!img.naturalWidth) return;
+				decide(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
+			}
+			if (img.complete && img.naturalWidth > 0) { onLoad(); }
+			else {
+				img.addEventListener('load', onLoad);
+				img.addEventListener('error', function() { tryBelowDesktopAd(); });
+			}
+		})();
+		{{else if .IsVideo}}
+		(function() {
+			var vid = document.querySelector('.preview-video');
+			if (!vid) return;
+			function onMeta() {
+				decide(vid.videoHeight > vid.videoWidth ? 'portrait' : 'landscape');
+			}
+			if (vid.readyState >= 1) { onMeta(); }
+			else {
+				vid.addEventListener('loadedmetadata', onMeta);
+				vid.addEventListener('error', function() { tryBelowDesktopAd(); });
+			}
+		})();
+		{{else}}
+		// Audio, PDF, text, markdown: measure layout after paint
+		function runAfterLayout() {
+			requestAnimationFrame(function() {
+				requestAnimationFrame(function() {
+					decide('{{if .IsAudio}}portrait{{else}}fullwidth{{end}}');
+				});
+			});
+		}
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', runAfterLayout);
+		} else {
+			runAfterLayout();
+		}
+		{{end}}
+
+	})();
+	</script>
+{{end}}{{end}}
+`

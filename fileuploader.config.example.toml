@@ -112,6 +112,17 @@ CheckInterval = "5m"
 # ]
 # RejectOnNoneZeroExit = false
 
+[Ads]
+# Controls who sees advertisements on file preview pages.
+# Mode = "none"      # Ads disabled for everyone (default if omitted)
+# Mode = "all"       # Ads enabled for all visitors
+# Mode = "allowlist" # Ads enabled only for the listed IP addresses (useful for testing)
+# AllowedIPs = ["192.168.1.10", "203.0.113.5"]
+#
+# Ezoic managed ads.txt — fetched on startup and refreshed every 24h.
+# Leave empty (or omit) to disable the /ads.txt route entirely.
+# AdsTxtURL = "https://srv.adstxtmanager.com/19390/europnet.org"
+
 [[Loggers]]
 Level = "info" # debug | info | warn | error | fatal | panic
 Format = "pretty" # pretty | json

@@ -29,6 +29,7 @@ type UploadServer struct {
 	httpServer          *http.Server
 	htmlTemplate        *template.Template
 	notFoundTemplate    *template.Template
+	adsTxt              *adsTxtCache
 	startedMu           sync.Mutex
 	started             chan struct{}
 	tusEventBroadcaster *events.TusEventBroadcaster
@@ -90,6 +91,11 @@ func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
 	if err != nil {
 		serv.log.Error().Err(err).Msg("Failed to parse 404 template")
 		return err
+	}
+
+	// Start ads.txt cache if configured
+	if serv.cfg.Ads.AdsTxtURL != "" {
+		serv.adsTxt = newAdsTxtCache(context.Background(), serv.cfg.Ads.AdsTxtURL)
 	}
 
 	err = serv.registerTusHandlers(serv.Router, serv.store)
