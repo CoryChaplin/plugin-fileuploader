@@ -25,6 +25,7 @@ var adsSubTemplates = `
 			justify-content: center;
 			width: 100%;
 			max-width: 1600px;
+			overflow: hidden;
 		}
 
 		.ad-sidebar {
@@ -35,6 +36,9 @@ var adsSubTemplates = `
 			flex-direction: column;
 			align-items: center;
 			justify-content: flex-start;
+			/* transform creates a new containing block for position:fixed children,
+			   preventing Ezoic's fixed-position ads from escaping the sidebar bounds */
+			transform: translateZ(0);
 		}
 
 		.ad-sidebar.visible { width: 160px; max-height: 620px; }
