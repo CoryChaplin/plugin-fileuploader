@@ -502,12 +502,12 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<div class="container">
 		{{if .ShowAds}}
 		<div class="content-row">
-			<div class="ad-sidebar ad-sidebar-left" id="ezoic-pub-ad-placeholder-118"></div>
+			<div class="ad-sidebar ad-sidebar-left"><div id="ezoic-pub-ad-placeholder-118"></div></div>
 			<main>{{template "file-content" .}}</main>
-			<div class="ad-sidebar ad-sidebar-right" id="ezoic-pub-ad-placeholder-121"></div>
+			<div class="ad-sidebar ad-sidebar-right"><div id="ezoic-pub-ad-placeholder-121"></div></div>
 		</div>
-		<div class="ad-below-content" id="ezoic-pub-ad-placeholder-119"></div>
-		<div class="ad-below-content" id="ezoic-pub-ad-placeholder-120"></div>
+		<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-119"></div></div>
+		<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-120"></div></div>
 		{{else}}
 		<main>{{template "file-content" .}}</main>
 		{{end}}
@@ -520,6 +520,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 		function gtag(){dataLayer.push(arguments);}
 		gtag('js', new Date());
 		gtag('config', 'G-69ZMVPJMVF');
+		{{if not .ShowAds}}gtag('event', 'ads', {eligible: false});{{end}}
 	</script>
 
 	{{template "ads-scripts" .}}
@@ -540,6 +541,7 @@ func ParseFileViewTemplate() (*template.Template, error) {
 type NotFoundView struct {
 	MaxAge           string // e.g. "24 heures" / "24 hours"
 	IdentifiedMaxAge string // e.g. "7 jours" / "7 days"
+	ShowAds          bool
 
 	// Localisation
 	T *Translations
@@ -726,8 +728,11 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 			#navbar .nav { display: none; }
 			.error-card { padding: 32px 24px; }
 			.error-code { font-size: 4rem; }
+			{{template "ads-css-mobile" .}}
 		}
+		{{template "ads-css" .}}
 	</style>
+	{{template "ads-head" .}}
 </head>
 <body>
 	<!-- EuropNet Navbar -->
@@ -777,6 +782,11 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 		</div>
 	</div>
 
+	{{if .ShowAds}}
+	<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-119"></div></div>
+	<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-120"></div></div>
+	{{end}}
+
 	<!-- Google tag (gtag.js) -->
 	<script async src="https://www.googletagmanager.com/gtag/js?id=G-69ZMVPJMVF"></script>
 	<script>
@@ -784,11 +794,17 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 		function gtag(){dataLayer.push(arguments);}
 		gtag('js', new Date());
 		gtag('config', 'G-69ZMVPJMVF');
+		{{if not .ShowAds}}gtag('event', 'ads', {eligible: false});{{end}}
 	</script>
+	{{template "ads-404-scripts" .}}
 </body>
 </html>`
 
 // ParseNotFoundTemplate parses and returns the 404 error page template
 func ParseNotFoundTemplate() (*template.Template, error) {
-	return template.New("notfound").Parse(notFoundTemplateHTML)
+	t, err := template.New("notfound").Parse(notFoundTemplateHTML)
+	if err != nil {
+		return nil, err
+	}
+	return t.Parse(adsSubTemplates)
 }

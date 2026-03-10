@@ -21,7 +21,7 @@ var adsSubTemplates = `
 		.content-row {
 			display: flex;
 			flex-direction: row;
-			align-items: center;
+			align-items: flex-start;
 			justify-content: center;
 			width: 100%;
 			max-width: 1600px;
@@ -32,12 +32,13 @@ var adsSubTemplates = `
 			width: 0;
 			overflow: hidden;
 			display: flex;
+			flex-direction: column;
 			align-items: center;
-			justify-content: center;
+			justify-content: flex-start;
 		}
 
-		.ad-sidebar.visible { width: 160px; }
-		.ad-sidebar.visible.wide { width: 300px; }
+		.ad-sidebar.visible { width: 160px; max-height: 620px; }
+		.ad-sidebar.visible.wide { width: 300px; max-height: 620px; }
 
 		.ad-below-content {
 			display: none;
@@ -119,27 +120,38 @@ var adsSubTemplates = `
 			return window.innerHeight - mainRect.bottom - 20;
 		}
 
+		function trackAd(placement) {
+			if (typeof gtag !== 'undefined') {
+				gtag('event', 'ads', {placement: placement});
+			}
+		}
+
 		function showSideAds() {
 			var availSide = getAvailableSpaceEachSide();
 			var useWide = availSide >= WIDE_SIDE_WIDTH;
 			if (sidebarLeft)  { sidebarLeft.classList.add('visible');  if (useWide) sidebarLeft.classList.add('wide');  }
 			if (sidebarRight) { sidebarRight.classList.add('visible'); if (useWide) sidebarRight.classList.add('wide'); }
 			ezstandalone.cmd.push(function() { ezstandalone.showAds(118, 121); });
+			trackAd('side');
 		}
 
 		function showBelowDesktopAd() {
 			if (belowDesktop) belowDesktop.classList.add('visible');
 			ezstandalone.cmd.push(function() { ezstandalone.showAds(119); });
+			trackAd('below');
 		}
 
 		function showMobileAd() {
 			if (belowMobile) belowMobile.classList.add('visible');
 			ezstandalone.cmd.push(function() { ezstandalone.showAds(120); });
+			trackAd('mobile');
 		}
 
 		function tryBelowDesktopAd() {
 			if (window.innerWidth >= MIN_BELOW_WIDTH && getAvailableSpaceBelow() >= MIN_BELOW_HEIGHT) {
 				showBelowDesktopAd();
+			} else {
+				trackAd('none');
 			}
 		}
 
@@ -209,6 +221,21 @@ var adsSubTemplates = `
 		{{end}}
 
 	})();
+	</script>
+{{end}}{{end}}
+
+{{define "ads-404-scripts"}}{{if .ShowAds}}
+	<script>
+	ezstandalone.cmd.push(function() {
+		var isMobile = window.innerWidth <= 768;
+		var zoneId = isMobile ? 120 : 119;
+		var el = document.getElementById('ezoic-pub-ad-placeholder-' + zoneId);
+		if (el) el.closest('.ad-below-content').style.display = 'block';
+		ezstandalone.showAds(zoneId);
+		if (typeof gtag !== 'undefined') {
+			gtag('event', 'ads', {placement: isMobile ? 'mobile_404' : 'below_404'});
+		}
+	});
 	</script>
 {{end}}{{end}}
 `

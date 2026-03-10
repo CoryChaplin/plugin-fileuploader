@@ -361,12 +361,29 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 	}
 }
 
+// shouldShowAds returns true if ads should be shown to this visitor based on config.
+func (serv *UploadServer) shouldShowAds(c *gin.Context) bool {
+	switch serv.cfg.Ads.Mode {
+	case "all":
+		return true
+	case "allowlist":
+		clientIP := c.ClientIP()
+		for _, allowed := range serv.cfg.Ads.AllowedIPs {
+			if clientIP == allowed {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // serveHtml404 renders the 404 error page for browsers
 func (serv *UploadServer) serveHtml404(c *gin.Context) {
 	t := detectLanguage(c.GetHeader("Accept-Language"))
 	view := NotFoundView{
 		MaxAge:           humanizeDuration(serv.cfg.Expiration.MaxAge.Duration, t),
 		IdentifiedMaxAge: humanizeDuration(serv.cfg.Expiration.IdentifiedMaxAge.Duration, t),
+		ShowAds:          serv.shouldShowAds(c),
 		T:                t,
 	}
 	c.Status(http.StatusNotFound)
@@ -404,20 +421,7 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 	pageURL := scheme + "://" + host + c.Request.URL.Path
 	directURL := scheme + "://" + host + c.Request.URL.Path + "?raw=1"
 
-	// Determine whether to show ads for this visitor
-	showAds := false
-	switch serv.cfg.Ads.Mode {
-	case "all":
-		showAds = true
-	case "allowlist":
-		clientIP := c.ClientIP()
-		for _, allowed := range serv.cfg.Ads.AllowedIPs {
-			if clientIP == allowed {
-				showAds = true
-				break
-			}
-		}
-	}
+	showAds := serv.shouldShowAds(c)
 
 	// Build view model
 	view := FileView{
