@@ -160,6 +160,10 @@ var adsSubTemplates = `
 		}
 
 		function decide(orientation) {
+			if (getAvailableSpaceBelow() < MIN_BELOW_HEIGHT) {
+				ezstandalone.cmd.push(function() { ezstandalone.setEzoicAnchorAd(false); });
+			}
+
 			var isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
 
 			if (isMobile) {
