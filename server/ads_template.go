@@ -187,6 +187,7 @@ var adsSubTemplates = `
 			if (!img) return;
 			function onLoad() {
 				if (!img.naturalWidth) return;
+				mainEl.style.width = img.getBoundingClientRect().width + 'px';
 				decide(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
 			}
 			if (img.complete && img.naturalWidth > 0) { onLoad(); }
@@ -200,6 +201,7 @@ var adsSubTemplates = `
 			var vid = document.querySelector('.preview-video');
 			if (!vid) return;
 			function onMeta() {
+				mainEl.style.width = vid.getBoundingClientRect().width + 'px';
 				decide(vid.videoHeight > vid.videoWidth ? 'portrait' : 'landscape');
 			}
 			if (vid.readyState >= 1) { onMeta(); }
