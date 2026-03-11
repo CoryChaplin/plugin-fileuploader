@@ -520,7 +520,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 		function gtag(){dataLayer.push(arguments);}
 		gtag('js', new Date());
 		gtag('config', 'G-69ZMVPJMVF');
-		{{if not .ShowAds}}gtag('event', 'ads', {eligible: false});{{end}}
+		{{if .ShowAds}}gtag('event', 'ads', {eligible: true});{{else}}gtag('event', 'ads', {eligible: false});{{end}}
 	</script>
 
 	{{template "ads-scripts" .}}
@@ -794,7 +794,7 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 		function gtag(){dataLayer.push(arguments);}
 		gtag('js', new Date());
 		gtag('config', 'G-69ZMVPJMVF');
-		{{if not .ShowAds}}gtag('event', 'ads', {eligible: false});{{end}}
+		{{if .ShowAds}}gtag('event', 'ads', {eligible: true});{{else}}gtag('event', 'ads', {eligible: false});{{end}}
 	</script>
 	{{template "ads-404-scripts" .}}
 </body>
