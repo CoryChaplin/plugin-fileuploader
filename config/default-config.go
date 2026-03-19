@@ -122,8 +122,16 @@ CheckInterval = "5m"
 # Mode = "allowlist" # Ads enabled only for listed IP addresses
 # AllowedIPs = ["192.168.1.10", "203.0.113.5"]
 #
-# URL to Ezoic's managed ads.txt (updated daily). Leave empty to disable /ads.txt route.
+# Ad provider selection (defaults to "ezoic" when omitted).
+# Provider = "ezoic"  # Ezoic standalone ads (zones 118–121)
+# Provider = "google" # Google Auto Ads
+#
+# Ezoic: URL to managed ads.txt (updated daily). Leave empty to disable /ads.txt route.
 # AdsTxtURL = "https://srv.adstxtmanager.com/19390/europnet.org"
+#
+# Google Ads (used when Provider = "google"):
+# GooglePublisherId = "ca-pub-7308685930931350"
+# GoogleConsentNonce = ""  # optional nonce for Content-Security-Policy
 
 [[Loggers]]
 Level = "info" # debug | info | warn | error | fatal | panic

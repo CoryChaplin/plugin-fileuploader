@@ -58,9 +58,12 @@ type Config struct {
 	JwtSecretsByIssuer map[string]string
 	Loggers            []LoggerConfig
 	Ads                struct {
-		Mode       string   // "all" | "none" | "allowlist"
-		AllowedIPs []string // used when Mode == "allowlist"
-		AdsTxtURL  string   // e.g. "https://srv.adstxtmanager.com/19390/europnet.org"
+		Provider           string   // "ezoic" (default) | "google"
+		Mode               string   // "all" | "none" | "allowlist"
+		AllowedIPs         []string // used when Mode == "allowlist"
+		AdsTxtURL          string   // e.g. "https://srv.adstxtmanager.com/19390/europnet.org"
+		GooglePublisherId  string   // e.g. "ca-pub-7308685930931350" (Google Ads only)
+		GoogleConsentNonce string   // optional nonce for fundingchoicesmessages script (Google Ads only)
 	}
 }
 

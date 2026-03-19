@@ -7,6 +7,13 @@ package server
 var adsSubTemplates = `
 
 {{define "ads-head"}}{{if .ShowAds}}
+{{if eq .AdProvider "google"}}
+	<!-- Google Auto Ads -->
+	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{.GooglePublisherId}}" crossorigin="anonymous"></script>
+	{{if .GoogleConsentNonce}}
+	<script src="https://fundingchoicesmessages.google.com/i/{{.GooglePublisherId}}?ers=1" nonce="{{.GoogleConsentNonce}}"></script>
+	{{end}}
+{{else}}
 	<!-- Ezoic Consent + Standalone -->
 	<script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
 	<script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script>
@@ -15,6 +22,7 @@ var adsSubTemplates = `
 		ezstandalone.cmd = ezstandalone.cmd || [];
 	</script>
 	<script async src="https://www.ezojs.com/ezoic/sa.min.js"></script>
+{{end}}
 {{end}}{{end}}
 
 {{define "ads-css"}}{{if .ShowAds}}
@@ -93,6 +101,30 @@ var adsSubTemplates = `
 {{end}}
 
 {{define "ads-scripts"}}{{if .ShowAds}}
+{{if eq .AdProvider "google"}}
+	<!-- Google Auto Ads: placement handled by Google -->
+	<script>
+	(function() {
+		// Signal Google Funding Choices consent frame
+		function signalGooglefcPresent() {
+			if (!window.frames['googlefcPresent']) {
+				if (document.body) {
+					var iframe = document.createElement('iframe');
+					iframe.style.cssText = 'width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;display:none';
+					iframe.name = 'googlefcPresent';
+					document.body.appendChild(iframe);
+				} else {
+					setTimeout(signalGooglefcPresent, 0);
+				}
+			}
+		}
+		signalGooglefcPresent();
+		if (typeof gtag !== 'undefined') {
+			gtag('event', 'ads', {placement: 'google_auto'});
+		}
+	})();
+	</script>
+{{else}}
 	<!-- Ezoic ad placement decision engine -->
 	<script>
 	(function() {
@@ -232,9 +264,18 @@ var adsSubTemplates = `
 
 	})();
 	</script>
+{{end}}
 {{end}}{{end}}
 
 {{define "ads-404-scripts"}}{{if .ShowAds}}
+{{if eq .AdProvider "google"}}
+	<!-- Google Auto Ads: placement handled by Google -->
+	<script>
+	if (typeof gtag !== 'undefined') {
+		gtag('event', 'ads', {placement: '404_google_auto'});
+	}
+	</script>
+{{else}}
 	<script>
 	ezstandalone.cmd.push(function() {
 		var isMobile = window.innerWidth <= 768;
@@ -247,5 +288,6 @@ var adsSubTemplates = `
 		}
 	});
 	</script>
+{{end}}
 {{end}}{{end}}
 `

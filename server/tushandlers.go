@@ -383,8 +383,11 @@ func (serv *UploadServer) serveHtml404(c *gin.Context) {
 	view := NotFoundView{
 		MaxAge:           humanizeDuration(serv.cfg.Expiration.MaxAge.Duration, t),
 		IdentifiedMaxAge: humanizeDuration(serv.cfg.Expiration.IdentifiedMaxAge.Duration, t),
-		ShowAds:          serv.shouldShowAds(c),
-		T:                t,
+		ShowAds:            serv.shouldShowAds(c),
+		AdProvider:         serv.cfg.Ads.Provider,
+		GooglePublisherId:  serv.cfg.Ads.GooglePublisherId,
+		GoogleConsentNonce: serv.cfg.Ads.GoogleConsentNonce,
+		T:                  t,
 	}
 	c.Status(http.StatusNotFound)
 	if err := serv.notFoundTemplate.Execute(c.Writer, view); err != nil {
@@ -436,9 +439,12 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 		IsAudio:       strings.HasPrefix(mimeType, "audio/"),
 		IsPDF:         mimeType == "application/pdf",
 		IsText:        strings.HasPrefix(mimeType, "text/"),
-		IsMarkdown:    isMarkdownFile(filename, mimeType),
-		ShowAds:       showAds,
-		T:             detectLanguage(c.GetHeader("Accept-Language")),
+		IsMarkdown:         isMarkdownFile(filename, mimeType),
+		ShowAds:            showAds,
+		AdProvider:         serv.cfg.Ads.Provider,
+		GooglePublisherId:  serv.cfg.Ads.GooglePublisherId,
+		GoogleConsentNonce: serv.cfg.Ads.GoogleConsentNonce,
+		T:                  detectLanguage(c.GetHeader("Accept-Language")),
 	}
 
 	// Parse expiration from metadata

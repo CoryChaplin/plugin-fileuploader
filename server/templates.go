@@ -56,7 +56,10 @@ type FileView struct {
 	TextContent string // Text file content (if IsText == true)
 
 	// Ads
-	ShowAds bool // true if ads should be shown to this visitor
+	ShowAds            bool   // true if ads should be shown to this visitor
+	AdProvider         string // "ezoic" | "google"
+	GooglePublisherId  string // Google publisher ID (Google Ads only)
+	GoogleConsentNonce string // optional CSP nonce (Google Ads only)
 
 	// Localisation
 	T *Translations
@@ -502,12 +505,14 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<div class="container">
 		{{if .ShowAds}}
 		<div class="content-row">
-			<div class="ad-sidebar ad-sidebar-left"><div id="ezoic-pub-ad-placeholder-118"></div></div>
+			{{if eq .AdProvider "ezoic"}}<div class="ad-sidebar ad-sidebar-left"><div id="ezoic-pub-ad-placeholder-118"></div></div>{{end}}
 			<main>{{template "file-content" .}}</main>
-			<div class="ad-sidebar ad-sidebar-right"><div id="ezoic-pub-ad-placeholder-121"></div></div>
+			{{if eq .AdProvider "ezoic"}}<div class="ad-sidebar ad-sidebar-right"><div id="ezoic-pub-ad-placeholder-121"></div></div>{{end}}
 		</div>
+		{{if eq .AdProvider "ezoic"}}
 		<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-119"></div></div>
 		<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-120"></div></div>
+		{{end}}
 		{{else}}
 		<main>{{template "file-content" .}}</main>
 		{{end}}
@@ -541,7 +546,10 @@ func ParseFileViewTemplate() (*template.Template, error) {
 type NotFoundView struct {
 	MaxAge           string // e.g. "24 heures" / "24 hours"
 	IdentifiedMaxAge string // e.g. "7 jours" / "7 days"
-	ShowAds          bool
+	ShowAds            bool
+	AdProvider         string // "ezoic" | "google"
+	GooglePublisherId  string // Google publisher ID (Google Ads only)
+	GoogleConsentNonce string // optional CSP nonce (Google Ads only)
 
 	// Localisation
 	T *Translations
@@ -782,7 +790,7 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 		</div>
 	</div>
 
-	{{if .ShowAds}}
+	{{if and .ShowAds (eq .AdProvider "ezoic")}}
 	<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-119"></div></div>
 	<div class="ad-below-content"><div id="ezoic-pub-ad-placeholder-120"></div></div>
 	{{end}}
