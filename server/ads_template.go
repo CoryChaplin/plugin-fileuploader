@@ -104,6 +104,7 @@ var adsSubTemplates = `
 		'use strict';
 
 		var MIN_SIDE_WIDTH    = 160;
+		var WIDE_SIDE_WIDTH   = 300;
 		var MIN_SIDE_HEIGHT   = 400;
 		var MIN_BELOW_WIDTH   = 728;
 		var MIN_BELOW_HEIGHT  = 90;
@@ -133,10 +134,16 @@ var adsSubTemplates = `
 			var isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
 			if (isMobile) return true;
 
-			// Side space is checked regardless of orientation (Google places ads wherever it fits)
 			var availSide = getAvailableSpaceEachSide();
 			var mainRect = mainEl.getBoundingClientRect();
-			if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) return true;
+			if (orientation === 'portrait') {
+				// Portrait: 160px each side is enough
+				if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) return true;
+			} else {
+				// Landscape: image fills horizontal space; require wider margin (300px) to avoid
+				// triggering on large images constrained by max-height with small apparent side space
+				if (availSide >= WIDE_SIDE_WIDTH) return true;
+			}
 
 			return window.innerWidth >= MIN_BELOW_WIDTH && getAvailableSpaceBelow() >= MIN_BELOW_HEIGHT;
 		}
