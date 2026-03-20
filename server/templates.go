@@ -109,7 +109,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 	<meta name="robots" content="noindex, nofollow">
 
 	<!-- Security headers -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src * 'unsafe-inline'; style-src 'unsafe-inline' https://cdnjs.cloudflare.com; media-src 'self'; img-src 'self' data: https:; font-src https://cdnjs.cloudflare.com; connect-src https:; frame-src https:;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src * 'unsafe-inline'; style-src 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; media-src 'self'; img-src 'self' data: https:; font-src https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src https:; frame-src https:;">
 
 	<!-- Font Awesome for navbar icons -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -573,7 +573,7 @@ var notFoundTemplateHTML = `<!DOCTYPE html>
 	<meta name="robots" content="noindex, nofollow">
 
 	<!-- Security headers -->
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com; style-src 'unsafe-inline' https://cdnjs.cloudflare.com; media-src 'self'; img-src 'self' data: https://chat.europnet.org; font-src https://cdnjs.cloudflare.com; connect-src https://*.google-analytics.com https://www.googletagmanager.com;">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://chat.europnet.org http://www.chat-fr.org http://quote.europnet.org; script-src 'unsafe-inline' https://www.googletagmanager.com; style-src 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; media-src 'self'; img-src 'self' data: https://chat.europnet.org; font-src https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src https://*.google-analytics.com https://www.googletagmanager.com;">
 
 	<!-- Font Awesome for navbar icons -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">

@@ -8,11 +8,7 @@ var adsSubTemplates = `
 
 {{define "ads-head"}}{{if .ShowAds}}
 {{if eq .AdProvider "google"}}
-	<!-- Google Auto Ads -->
-	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{.GooglePublisherId}}" crossorigin="anonymous"></script>
-	{{if .GoogleConsentNonce}}
-	<script src="https://fundingchoicesmessages.google.com/i/{{.GooglePublisherId}}?ers=1" nonce="{{.GoogleConsentNonce}}"></script>
-	{{end}}
+	<!-- Google Auto Ads: scripts loaded conditionally after space check in ads-scripts -->
 {{else}}
 	<!-- Ezoic Consent + Standalone -->
 	<script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
@@ -102,26 +98,123 @@ var adsSubTemplates = `
 
 {{define "ads-scripts"}}{{if .ShowAds}}
 {{if eq .AdProvider "google"}}
-	<!-- Google Auto Ads: placement handled by Google -->
+	<!-- Google Auto Ads: loaded only if space rules (same as Ezoic) are satisfied -->
 	<script>
 	(function() {
-		// Signal Google Funding Choices consent frame
-		function signalGooglefcPresent() {
-			if (!window.frames['googlefcPresent']) {
-				if (document.body) {
-					var iframe = document.createElement('iframe');
-					iframe.style.cssText = 'width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;display:none';
-					iframe.name = 'googlefcPresent';
-					document.body.appendChild(iframe);
-				} else {
-					setTimeout(signalGooglefcPresent, 0);
-				}
+		'use strict';
+
+		var MIN_SIDE_WIDTH    = 160;
+		var MIN_SIDE_HEIGHT   = 400;
+		var MIN_BELOW_WIDTH   = 728;
+		var MIN_BELOW_HEIGHT  = 90;
+		var MOBILE_BREAKPOINT = 768;
+
+		var mainEl = document.querySelector('main');
+		if (!mainEl) return;
+
+		function getAvailableSpaceEachSide() {
+			var mainRect = mainEl.getBoundingClientRect();
+			var usableWidth = window.innerWidth - 40;
+			return (usableWidth - mainRect.width) / 2;
+		}
+
+		function getAvailableSpaceBelow() {
+			var mainRect = mainEl.getBoundingClientRect();
+			return window.innerHeight - mainRect.bottom - 20;
+		}
+
+		function trackAd(placement) {
+			if (typeof gtag !== 'undefined') {
+				gtag('event', 'ads', {placement: placement});
 			}
 		}
-		signalGooglefcPresent();
-		if (typeof gtag !== 'undefined') {
-			gtag('event', 'ads', {placement: 'google_auto'});
+
+		function hasSpace(orientation) {
+			var isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+			if (isMobile) return true;
+
+			if (orientation === 'portrait') {
+				var availSide = getAvailableSpaceEachSide();
+				var mainRect = mainEl.getBoundingClientRect();
+				if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) return true;
+			}
+			return window.innerWidth >= MIN_BELOW_WIDTH && getAvailableSpaceBelow() >= MIN_BELOW_HEIGHT;
 		}
+
+		function loadGoogleAds() {
+			// Consent frame required by Google Funding Choices
+			if (!window.frames['googlefcPresent']) {
+				var iframe = document.createElement('iframe');
+				iframe.style.cssText = 'width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;display:none';
+				iframe.name = 'googlefcPresent';
+				document.body.appendChild(iframe);
+			}
+			{{if .GoogleConsentNonce}}
+			var consentScript = document.createElement('script');
+			consentScript.src = 'https://fundingchoicesmessages.google.com/i/{{.GooglePublisherId}}?ers=1';
+			consentScript.nonce = '{{.GoogleConsentNonce}}';
+			document.head.appendChild(consentScript);
+			{{end}}
+			var gadScript = document.createElement('script');
+			gadScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{.GooglePublisherId}}';
+			gadScript.setAttribute('crossorigin', 'anonymous');
+			gadScript.async = true;
+			document.head.appendChild(gadScript);
+			trackAd('google_auto');
+		}
+
+		function decide(orientation) {
+			if (hasSpace(orientation)) {
+				loadGoogleAds();
+			} else {
+				trackAd('none');
+			}
+		}
+
+		{{if .IsImage}}
+		(function() {
+			var img = document.querySelector('.preview-image');
+			if (!img) return;
+			function onLoad() {
+				if (!img.naturalWidth) return;
+				mainEl.style.width = img.getBoundingClientRect().width + 'px';
+				decide(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
+			}
+			if (img.complete && img.naturalWidth > 0) { onLoad(); }
+			else {
+				img.addEventListener('load', onLoad);
+				img.addEventListener('error', function() { decide('landscape'); });
+			}
+		})();
+		{{else if .IsVideo}}
+		(function() {
+			var vid = document.querySelector('.preview-video');
+			if (!vid) return;
+			function onMeta() {
+				mainEl.style.width = vid.getBoundingClientRect().width + 'px';
+				decide(vid.videoHeight > vid.videoWidth ? 'portrait' : 'landscape');
+			}
+			if (vid.readyState >= 1) { onMeta(); }
+			else {
+				vid.addEventListener('loadedmetadata', onMeta);
+				vid.addEventListener('error', function() { decide('landscape'); });
+			}
+		})();
+		{{else}}
+		function runAfterLayout() {
+			requestAnimationFrame(function() {
+				requestAnimationFrame(function() {
+					decide('{{if .IsAudio}}portrait{{else}}fullwidth{{end}}');
+				});
+			});
+		}
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', runAfterLayout);
+		} else {
+			runAfterLayout();
+		}
+		{{end}}
+
 	})();
 	</script>
 {{else}}
@@ -269,11 +362,35 @@ var adsSubTemplates = `
 
 {{define "ads-404-scripts"}}{{if .ShowAds}}
 {{if eq .AdProvider "google"}}
-	<!-- Google Auto Ads: placement handled by Google -->
 	<script>
-	if (typeof gtag !== 'undefined') {
-		gtag('event', 'ads', {placement: '404_google_auto'});
-	}
+	(function() {
+		var isMobile = window.innerWidth <= 768;
+		var hasSpace = isMobile
+			? true
+			: (window.innerWidth >= 728 && window.innerHeight - document.body.getBoundingClientRect().bottom - 20 >= 90);
+		if (!hasSpace) {
+			if (typeof gtag !== 'undefined') gtag('event', 'ads', {placement: 'none'});
+			return;
+		}
+		if (!window.frames['googlefcPresent']) {
+			var iframe = document.createElement('iframe');
+			iframe.style.cssText = 'width:0;height:0;border:none;z-index:-1000;left:-1000px;top:-1000px;display:none';
+			iframe.name = 'googlefcPresent';
+			document.body.appendChild(iframe);
+		}
+		{{if .GoogleConsentNonce}}
+		var consentScript = document.createElement('script');
+		consentScript.src = 'https://fundingchoicesmessages.google.com/i/{{.GooglePublisherId}}?ers=1';
+		consentScript.nonce = '{{.GoogleConsentNonce}}';
+		document.head.appendChild(consentScript);
+		{{end}}
+		var gadScript = document.createElement('script');
+		gadScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{.GooglePublisherId}}';
+		gadScript.setAttribute('crossorigin', 'anonymous');
+		gadScript.async = true;
+		document.head.appendChild(gadScript);
+		if (typeof gtag !== 'undefined') gtag('event', 'ads', {placement: isMobile ? 'google_auto_mobile_404' : 'google_auto_404'});
+	})();
 	</script>
 {{else}}
 	<script>
