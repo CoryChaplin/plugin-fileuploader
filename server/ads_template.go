@@ -133,11 +133,11 @@ var adsSubTemplates = `
 			var isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
 			if (isMobile) return true;
 
-			if (orientation === 'portrait') {
-				var availSide = getAvailableSpaceEachSide();
-				var mainRect = mainEl.getBoundingClientRect();
-				if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) return true;
-			}
+			// Side space is checked regardless of orientation (Google places ads wherever it fits)
+			var availSide = getAvailableSpaceEachSide();
+			var mainRect = mainEl.getBoundingClientRect();
+			if (availSide >= MIN_SIDE_WIDTH && mainRect.height >= MIN_SIDE_HEIGHT) return true;
+
 			return window.innerWidth >= MIN_BELOW_WIDTH && getAvailableSpaceBelow() >= MIN_BELOW_HEIGHT;
 		}
 
