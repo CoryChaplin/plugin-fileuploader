@@ -355,7 +355,13 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 	// Relocate file before updating the DB hash, so that binPath() never
 	// resolves to the complete path before the file is actually there.
 	newPath := upload.store.completeBinPath(hash)
-	os.MkdirAll(filepath.Dir(newPath), defaultDirectoryPerm)
+	if err := os.MkdirAll(filepath.Dir(newPath), defaultDirectoryPerm); err != nil {
+		upload.store.log.Error().
+			Err(err).
+			Str("path", filepath.Dir(newPath)).
+			Msg("Failed to create directory for completed upload")
+		return err
+	}
 
 	if _, err := os.Stat(newPath); err != nil {
 		// file needs moving to the sharded filestore
