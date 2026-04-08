@@ -10,6 +10,22 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// tusdLogWriter bridges tusd's standard log.Logger to zerolog.
+type tusdLogWriter struct {
+	log *zerolog.Logger
+}
+
+// TusdLogWriter returns an io.Writer that forwards tusd log output to zerolog at warn level.
+func TusdLogWriter(log *zerolog.Logger) *tusdLogWriter {
+	return &tusdLogWriter{log: log}
+}
+
+func (w *tusdLogWriter) Write(p []byte) (n int, err error) {
+	msg := strings.TrimRight(string(p), "\n")
+	w.log.Warn().Str("source", "tusd").Msg(msg)
+	return len(p), nil
+}
+
 func TusdLogger(log *zerolog.Logger, broadcaster *events.TusEventBroadcaster) {
 	channel := broadcaster.Listen()
 	for {

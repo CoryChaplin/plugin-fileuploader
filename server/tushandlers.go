@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	goLog "log"
 	"net"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -120,7 +120,7 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 		BasePath:                serv.cfg.Server.BasePath,
 		StoreComposer:           composer,
 		MaxSize:                 int64(maximumUploadSize.Bytes()),
-		Logger:                  goLog.New(ioutil.Discard, "", 0),
+		Logger:                  goLog.New(logging.TusdLogWriter(serv.log), "", 0),
 		NotifyCompleteUploads:   true,
 		NotifyCreatedUploads:    true,
 		NotifyTerminatedUploads: true,
@@ -391,7 +391,9 @@ func (serv *UploadServer) serveHtml404(c *gin.Context) {
 	}
 	c.Status(http.StatusNotFound)
 	if err := serv.notFoundTemplate.Execute(c.Writer, view); err != nil {
-		serv.log.Error().Err(err).Msg("Failed to render 404 template")
+		if !isClientDisconnect(err) {
+			serv.log.Error().Err(err).Msg("Failed to render 404 template")
+		}
 	}
 }
 
@@ -479,8 +481,11 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 	// Execute template
 	err := serv.htmlTemplate.Execute(c.Writer, view)
 	if err != nil {
+		// Client disconnected mid-stream — not a server error
+		if isClientDisconnect(err) {
+			return
+		}
 		serv.log.Error().Err(err).Msg("Failed to render HTML template")
-		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 }
 
@@ -653,6 +658,15 @@ func (serv *UploadServer) remoteIPisTrusted(remoteIP net.IP) bool {
 		}
 	}
 	return false
+}
+
+// isClientDisconnect returns true if the error is caused by the client
+// closing the connection (broken pipe, connection reset, etc.).
+func isClientDisconnect(err error) bool {
+	return errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		strings.Contains(err.Error(), "broken pipe") ||
+		strings.Contains(err.Error(), "connection reset by peer")
 }
 
 func routePrefixFromBasePath(basePath string) (string, error) {
