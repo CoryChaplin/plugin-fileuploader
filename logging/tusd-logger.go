@@ -15,14 +15,14 @@ type tusdLogWriter struct {
 	log *zerolog.Logger
 }
 
-// TusdLogWriter returns an io.Writer that forwards tusd log output to zerolog at warn level.
+// TusdLogWriter returns an io.Writer that forwards tusd log output to zerolog at debug level.
 func TusdLogWriter(log *zerolog.Logger) *tusdLogWriter {
 	return &tusdLogWriter{log: log}
 }
 
 func (w *tusdLogWriter) Write(p []byte) (n int, err error) {
 	msg := strings.TrimRight(string(p), "\n")
-	w.log.Warn().Str("source", "tusd").Msg(msg)
+	w.log.Debug().Str("source", "tusd").Msg(msg)
 	return len(p), nil
 }
 
