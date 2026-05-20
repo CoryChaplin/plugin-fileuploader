@@ -19,6 +19,7 @@ import { shareCompletedUploadUrl } from './handlers/uppy/share-completed-upload-
 import instantiateUppy from './instantiate-uppy';
 import instantiateUppyLocales from './instantiate-uppy-locales';
 import { createPromptUpload } from './prompt-upload';
+import { createUploadBlob } from './upload-blob';
 import TokenManager from './token-manager';
 import { setDefaultSetting } from './utils/set-default-setting';
 
@@ -93,8 +94,9 @@ kiwi.plugin('fileuploader', function(kiwiApi, log) {
     instantiateUppyLocales(kiwiApi, uppy, scriptPath);
 
     const promptUpload = createPromptUpload({ kiwiApi, tokenManager });
+    const uploadBlob = createUploadBlob(kiwiApi);
     // expose plugin api
-    kiwiApi.fileuploader = { uppy, dashboard, promptUpload };
+    kiwiApi.fileuploader = { uppy, dashboard, promptUpload, uploadBlob };
 
     // show uppy modal whenever a file is dragged over the page
     window.addEventListener('dragenter', showDashboardOnDragEnter(kiwiApi, dashboard));

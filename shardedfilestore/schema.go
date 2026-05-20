@@ -101,6 +101,12 @@ func (store *ShardedFileStore) initDB() {
 					`ALTER TABLE new_uploads RENAME TO uploads;`,
 				},
 			},
+			{
+				Id: "6",
+				Up: []string{
+					`ALTER TABLE uploads ADD category TEXT DEFAULT '' NOT NULL;`,
+				},
+			},
 		},
 	}
 

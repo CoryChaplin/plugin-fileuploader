@@ -63,6 +63,20 @@ CheckInterval = "5m"
 # "example.com" = "examplesecret"
 # "169.254.0.0" = "anothersecret"
 
+# Categories allow different retention policies and storage locations per upload category.
+# Clients pass a "category" metadata field (e.g. Upload-Metadata: category <base64-value>).
+# If a category is set and not listed here, the upload is rejected with HTTP 400.
+# StoragePrefix places files under <Storage.Path>/<StoragePrefix>/complete/... instead of
+# the default <Storage.Path>/complete/... — useful to isolate files from an external cleanup job.
+#
+# WARNING: the category field is client-supplied and is not cryptographically verified in v1.
+# Any connected Kiwi user can request a category. Apply storage limits accordingly.
+#
+# [Categories.abuse-report]
+# MaxAge           = "8760h" # 1 year
+# IdentifiedMaxAge = "8760h" # 1 year
+# StoragePrefix    = "reports" # stored at <Storage.Path>/reports/complete/...
+
 # PreFinishCommands allows system commands to be run based on minetype once the file is fully uploaded
 # but before it is hashed and moved from incomplete so the file can be rejected using RejectOnNoneZeroExit
 # %FILE% will be replace with the full path to the file within [Storage.Path]/incomplete/

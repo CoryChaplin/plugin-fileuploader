@@ -43,6 +43,7 @@ type ShardedFileStore struct {
 	PrefixShardLayers    int           // Number of extra directory layers to prefix file paths with.
 	ExpireTime           time.Duration // How long before an upload expires (seconds)
 	ExpireIdentifiedTime time.Duration // How long before an upload expires with valid account (seconds)
+	Categories           map[string]config.CategoryConfig
 	PreFinishCommands    []config.PreFinishCommand
 	DBConn               *db.DatabaseConnection
 	log                  *zerolog.Logger
@@ -52,12 +53,13 @@ type ShardedFileStore struct {
 // be used as the only storage entry. This method does not check
 // whether the path exists, use os.MkdirAll to ensure.
 // In addition, a locking mechanism is provided.
-func New(basePath string, prefixShardLayers int, expireTime, expireIdentifiedTime time.Duration, PreFinishCommands []config.PreFinishCommand, dbConnection *db.DatabaseConnection, log *zerolog.Logger) *ShardedFileStore {
+func New(basePath string, prefixShardLayers int, expireTime, expireIdentifiedTime time.Duration, categories map[string]config.CategoryConfig, PreFinishCommands []config.PreFinishCommand, dbConnection *db.DatabaseConnection, log *zerolog.Logger) *ShardedFileStore {
 	store := &ShardedFileStore{
 		BasePath:             basePath,
 		PrefixShardLayers:    prefixShardLayers,
 		ExpireTime:           expireTime,
 		ExpireIdentifiedTime: expireIdentifiedTime,
+		Categories:           categories,
 		PreFinishCommands:    PreFinishCommands,
 		DBConn:               dbConnection,
 		log:                  log,
@@ -106,8 +108,8 @@ func (store ShardedFileStore) NewUpload(ctx context.Context, info handler.FileIn
 
 	// create record in uploads table
 	err = db.UpdateRow(store.DBConn.DB,
-		`INSERT INTO uploads(id, created_at, uploader_ip, jwt_account, jwt_issuer) VALUES (?, ?, ?, ?, ?)`,
-		info.ID, time.Now().Unix(), remoteIP, info.MetaData["account"], info.MetaData["issuer"],
+		`INSERT INTO uploads(id, created_at, uploader_ip, jwt_account, jwt_issuer, category) VALUES (?, ?, ?, ?, ?, ?)`,
+		info.ID, time.Now().Unix(), remoteIP, info.MetaData["account"], info.MetaData["issuer"], info.MetaData["category"],
 	)
 	if err != nil {
 		return nil, err
@@ -201,7 +203,10 @@ func (store ShardedFileStore) binPath(id string) (string, error) {
 		return store.incompleteBinPath(id), nil
 	}
 
-	return store.completeBinPath(hashBytes), nil
+	var category string
+	store.DBConn.DB.QueryRow(`SELECT COALESCE(category, '') FROM uploads WHERE id = ?`, id).Scan(&category)
+
+	return store.completeBinPath(hashBytes, category), nil
 }
 
 // infoPath returns the path to the .info file storing the upload's metadata.
@@ -287,7 +292,9 @@ func (upload *fileUpload) writeInfo() error {
 func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 	upload.store.log.Debug().
 		Str("event", "upload_finished").
-		Str("id", upload.info.ID).Msg("Finishing upload")
+		Str("id", upload.info.ID).
+		Str("category", upload.info.MetaData["category"]).
+		Msg("Finishing upload")
 
 	oldPath := upload.store.incompleteBinPath(upload.info.ID)
 
@@ -346,15 +353,13 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 		return err
 	}
 
-	expires := durationToExpire(upload.store.ExpireTime)
-	if upload.info.MetaData["account"] != "" {
-		expires = durationToExpire(upload.store.ExpireIdentifiedTime)
-	}
+	category := upload.info.MetaData["category"]
+	expires := upload.store.expiryForUpload(category, upload.info.MetaData["account"] != "")
 	upload.info.MetaData["expires"] = strconv.FormatInt(expires, 10)
 
 	// Relocate file before updating the DB hash, so that binPath() never
 	// resolves to the complete path before the file is actually there.
-	newPath := upload.store.completeBinPath(hash)
+	newPath := upload.store.completeBinPath(hash, category)
 	if err := os.MkdirAll(filepath.Dir(newPath), defaultDirectoryPerm); err != nil {
 		upload.store.log.Error().
 			Err(err).
@@ -389,9 +394,10 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 	err = db.UpdateRow(upload.store.DBConn.DB, `
 		UPDATE uploads
 		SET sha256sum = ?,
-		expires_at = ?
+		expires_at = ?,
+		category = ?
 		WHERE id = ?
-	`, hash, expires, upload.info.ID)
+	`, hash, expires, category, upload.info.ID)
 	if err != nil {
 		upload.store.log.Error().
 			Err(err).
@@ -617,10 +623,12 @@ func (store *ShardedFileStore) incompleteBinPath(id string) string {
 	return filepath.Join(store.incompleteBinDir(), id+".bin")
 }
 
-func (store ShardedFileStore) completeBinPath(hashBytes []byte) string {
-	// finished: <base-path>/complete/<hash-shards>/<hash>.bin
+func (store ShardedFileStore) completeBinPath(hashBytes []byte, category string) string {
 	hash := fmt.Sprintf("%x", hashBytes)
 	shards := store.shards(hash)
+	if catCfg, ok := store.Categories[category]; ok && catCfg.StoragePrefix != "" {
+		return filepath.Join(store.BasePath, catCfg.StoragePrefix, "complete", shards, hash+".bin")
+	}
 	return filepath.Join(store.BasePath, "complete", shards, hash+".bin")
 }
 
@@ -628,4 +636,17 @@ func durationToExpire(d time.Duration) int64 {
 	timeStr := fmt.Sprintf("%.0f", d.Seconds())
 	timeInt, _ := strconv.Atoi(timeStr)
 	return time.Now().Unix() + int64(timeInt)
+}
+
+func (store *ShardedFileStore) expiryForUpload(category string, identified bool) int64 {
+	if catCfg, ok := store.Categories[category]; ok {
+		if identified {
+			return durationToExpire(catCfg.IdentifiedMaxAge.Duration)
+		}
+		return durationToExpire(catCfg.MaxAge.Duration)
+	}
+	if identified {
+		return durationToExpire(store.ExpireIdentifiedTime)
+	}
+	return durationToExpire(store.ExpireTime)
 }

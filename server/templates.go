@@ -257,7 +257,7 @@ var fileViewTemplateHTML = `<!DOCTYPE html>
 			white-space: pre-wrap;
 			word-wrap: break-word;
 			font-family: 'Courier New', Courier, monospace;
-			font-size: 14px;
+			font-size: 1.1em;
 			line-height: 1.5;
 			max-height: calc(100vh - 120px);
 			overflow-y: auto;
@@ -544,8 +544,8 @@ func ParseFileViewTemplate() (*template.Template, error) {
 
 // NotFoundView contains data for rendering the 404 error page
 type NotFoundView struct {
-	MaxAge           string // e.g. "24 heures" / "24 hours"
-	IdentifiedMaxAge string // e.g. "7 jours" / "7 days"
+	MaxAge             string // e.g. "24 heures" / "24 hours"
+	IdentifiedMaxAge   string // e.g. "7 jours" / "7 days"
 	ShowAds            bool
 	AdProvider         string // "ezoic" | "google"
 	GooglePublisherId  string // Google publisher ID (Google Ads only)

@@ -101,6 +101,14 @@ func (serv *UploadServer) fileuploaderMiddleware() gin.HandlerFunc {
 		// extjwt is no longer needed, remove so it does not get stored with the file info
 		delete(metadata, "extjwt")
 
+		// validate category if provided
+		if category := metadata["category"]; category != "" {
+			if _, ok := serv.cfg.Categories[category]; !ok {
+				c.AbortWithError(http.StatusBadRequest, fmt.Errorf("unknown upload category: %q", category))
+				return
+			}
+		}
+
 		// Update metadata with any changes that have been made
 		c.Request.Header.Set("Upload-Metadata", tusd.SerializeMetadataHeader(metadata))
 

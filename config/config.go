@@ -31,6 +31,12 @@ type PreFinishCommand struct {
 	RejectOnNoneZeroExit bool
 }
 
+type CategoryConfig struct {
+	MaxAge           duration
+	IdentifiedMaxAge duration
+	StoragePrefix    string
+}
+
 type Config struct {
 	Server struct {
 		ListenAddress             string
@@ -54,6 +60,7 @@ type Config struct {
 		IdentifiedMaxAge duration
 		CheckInterval    duration
 	}
+	Categories         map[string]CategoryConfig
 	PreFinishCommands  []PreFinishCommand
 	JwtSecretsByIssuer map[string]string
 	Loggers            []LoggerConfig
