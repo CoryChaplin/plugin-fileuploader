@@ -284,23 +284,14 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 			handler.GetFile(c.Writer, c.Request)
 		}
 
-		// If ?raw=1 query parameter is present, always serve binary
-		if c.Query("raw") == "1" {
-			serveRaw()
-			return
-		}
+		// ?raw=1 always serves binary (once the file is known not to be expired)
+		raw := c.Query("raw") == "1"
 
 		// Load file metadata from storage
 		upload, err := serv.store.GetUpload(c.Request.Context(), id)
 		if err != nil {
 			// File not found or error loading — serve HTML 404 for browsers
-			accept := c.GetHeader("Accept")
-			userAgent := c.GetHeader("User-Agent")
-			wantsHtml := strings.Contains(accept, "text/html")
-			isBrowser := strings.Contains(userAgent, "Mozilla") ||
-				strings.Contains(userAgent, "Chrome") ||
-				strings.Contains(userAgent, "Safari")
-			if wantsHtml || (isBrowser && accept == "*/*") {
+			if !raw && clientWantsHtml(c) {
 				serv.serveHtml404(c)
 				return
 			}
@@ -311,6 +302,22 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 		info, err := upload.GetInfo(c.Request.Context())
 		if err != nil {
 			// Error getting file info, fall back to binary
+			serveRaw()
+			return
+		}
+
+		// The expirer may lag behind on a loaded server: never serve a file
+		// past its expiry, even if it has not been purged yet.
+		if isExpired(info) {
+			if !raw && clientWantsHtml(c) {
+				serv.serveHtml404(c)
+				return
+			}
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		if raw {
 			serveRaw()
 			return
 		}
@@ -351,22 +358,36 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 			return
 		}
 
-		// Detect client type via Accept header
-		accept := c.GetHeader("Accept")
-		userAgent := c.GetHeader("User-Agent")
-
-		wantsHtml := strings.Contains(accept, "text/html")
-		isBrowser := strings.Contains(userAgent, "Mozilla") ||
-			strings.Contains(userAgent, "Chrome") ||
-			strings.Contains(userAgent, "Safari")
-
-		if wantsHtml || (isBrowser && accept == "*/*") {
+		if clientWantsHtml(c) {
 			serv.serveHtmlWrapper(c, handler, upload, info)
 		} else {
 			// Serve raw file via TUS handler
 			serveRaw()
 		}
 	}
+}
+
+// clientWantsHtml returns true if the client is a browser expecting an HTML page
+// (Accept: text/html, or a browser User-Agent with Accept: */*).
+func clientWantsHtml(c *gin.Context) bool {
+	accept := c.GetHeader("Accept")
+	userAgent := c.GetHeader("User-Agent")
+	wantsHtml := strings.Contains(accept, "text/html")
+	isBrowser := strings.Contains(userAgent, "Mozilla") ||
+		strings.Contains(userAgent, "Chrome") ||
+		strings.Contains(userAgent, "Safari")
+	return wantsHtml || (isBrowser && accept == "*/*")
+}
+
+// isExpired returns true if the upload has an "expires" timestamp in the past.
+// Uploads without it (in progress, or completed before the field existed) are
+// left to the expirer.
+func isExpired(info tusd.FileInfo) bool {
+	expiresUnix, err := strconv.ParseInt(info.MetaData["expires"], 10, 64)
+	if err != nil {
+		return false
+	}
+	return time.Now().Unix() >= expiresUnix
 }
 
 // shouldShowAds returns true if ads should be shown to this visitor based on config.
