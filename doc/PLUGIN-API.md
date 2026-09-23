@@ -133,6 +133,7 @@ IdentifiedMaxAge = "8760h"  # 1 year (applies to JWT-authenticated uploads)
 StoragePrefix    = "reports"
 # Files land at <Storage.Path>/reports/complete/... instead of
 # <Storage.Path>/complete/... — safe from cronjobs that prune the default tree.
+AdsMode          = "none"   # overrides [Ads] Mode for these files ("all" | "none" | "allowlist")
 ```
 
 Uploads with a `category` value not present in the config are rejected with HTTP 400. The empty category (no `category` metadata field) always uses the global `[Expiration]` defaults.

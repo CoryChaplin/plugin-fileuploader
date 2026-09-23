@@ -371,7 +371,12 @@ func (serv *UploadServer) getFileOrHtml(handler *tusd.UnroutedHandler) gin.Handl
 
 // shouldShowAds returns true if ads should be shown to this visitor based on config.
 func (serv *UploadServer) shouldShowAds(c *gin.Context) bool {
-	switch serv.cfg.Ads.Mode {
+	return serv.shouldShowAdsForMode(c, serv.cfg.Ads.Mode)
+}
+
+// shouldShowAdsForMode returns true if ads should be shown to this visitor under the given mode.
+func (serv *UploadServer) shouldShowAdsForMode(c *gin.Context, mode string) bool {
+	switch mode {
 	case "all":
 		return true
 	case "allowlist":
@@ -434,7 +439,11 @@ func (serv *UploadServer) serveHtmlWrapper(c *gin.Context, handler *tusd.Unroute
 	pageURL := scheme + "://" + host + c.Request.URL.Path
 	directURL := scheme + "://" + host + c.Request.URL.Path + "?raw=1"
 
-	showAds := serv.shouldShowAds(c)
+	adsMode := serv.cfg.Ads.Mode
+	if catCfg, ok := serv.cfg.Categories[info.MetaData["category"]]; ok && catCfg.AdsMode != "" {
+		adsMode = catCfg.AdsMode
+	}
+	showAds := serv.shouldShowAdsForMode(c, adsMode)
 
 	// Build view model
 	view := FileView{

@@ -35,6 +35,7 @@ type CategoryConfig struct {
 	MaxAge           duration
 	IdentifiedMaxAge duration
 	StoragePrefix    string
+	AdsMode          string // overrides Ads.Mode for this category: "all" | "none" | "allowlist"; empty = use Ads.Mode
 }
 
 type Config struct {

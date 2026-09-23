@@ -79,6 +79,7 @@ CheckInterval = "5m"
 # MaxAge           = "8760h" # 1 year
 # IdentifiedMaxAge = "8760h" # 1 year
 # StoragePrefix    = "reports" # stored at <Storage.Path>/reports/complete/...
+# AdsMode          = "none" # overrides [Ads] Mode for these files ("all" | "none" | "allowlist")
 
 # PreFinishCommands allows system commands to be run based on minetype once the file is fully uploaded
 # but before it is hashed and moved from incomplete so the file can be rejected using RejectOnNoneZeroExit
