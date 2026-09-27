@@ -388,6 +388,16 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 				Str("oldPath", oldPath).
 				Msg("Failed to remove")
 		}
+
+		// refresh mtime so age-based external cleanup jobs see the latest upload,
+		// not the first one that created this blob
+		now := time.Now()
+		if err := os.Chtimes(newPath, now, now); err != nil {
+			upload.store.log.Warn().
+				Err(err).
+				Str("path", newPath).
+				Msg("Failed to refresh mtime of deduplicated upload")
+		}
 	}
 
 	// update hash in uploads table (after the file is in place)
