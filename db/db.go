@@ -24,7 +24,8 @@ func ConnectToDB(log *zerolog.Logger, dbConfig DBConfig) *DatabaseConnection {
 		// Add the default connection options if none are given
 		switch dbConfig.DriverName {
 		case "sqlite3":
-			dbConfig.DSN += "?_busy_timeout=5000&cache=shared"
+			// synchronous=NORMAL is safe in WAL mode and avoids an fsync per commit
+			dbConfig.DSN += "?_busy_timeout=5000&cache=shared&_synchronous=NORMAL"
 		case "mysql":
 			dbConfig.DSN += "?parseTime=true"
 		}

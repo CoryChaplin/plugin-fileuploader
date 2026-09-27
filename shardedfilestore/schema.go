@@ -7,6 +7,12 @@ import (
 )
 
 func (store *ShardedFileStore) initDB() {
+	shaIndexColumn := "sha256sum"
+	if store.DBConn.DriverName == "mysql" {
+		// MySQL cannot index a BLOB column without a prefix length
+		shaIndexColumn = "sha256sum(32)"
+	}
+
 	migrations := &migrate.MemoryMigrationSource{
 		Migrations: []*migrate.Migration{
 			{
@@ -105,6 +111,15 @@ func (store *ShardedFileStore) initDB() {
 				Id: "6",
 				Up: []string{
 					`ALTER TABLE uploads ADD category TEXT DEFAULT '' NOT NULL;`,
+				},
+			},
+			{
+				Id: "7",
+				Up: []string{
+					// dedup lookups in Terminate() and the expirer's periodic scan
+					`CREATE INDEX idx_uploads_sha256sum ON uploads(` + shaIndexColumn + `);`,
+					`CREATE INDEX idx_uploads_expires_at ON uploads(deleted, expires_at);`,
+					`CREATE INDEX idx_uploads_created_at ON uploads(deleted, created_at);`,
 				},
 			},
 		},

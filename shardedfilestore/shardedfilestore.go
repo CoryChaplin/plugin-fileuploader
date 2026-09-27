@@ -194,17 +194,19 @@ func (store ShardedFileStore) AsConcatableUpload(upload handler.Upload) handler.
 
 // binPath returns the path to the file storing the binary data.
 func (store ShardedFileStore) binPath(id string) (string, error) {
-	hashBytes, isFinal, err := store.lookupHash(id)
+	// hash and category in a single query: this runs several times per request
+	var hashBytes []byte
+	var category string
+	err := store.DBConn.DB.QueryRow(`SELECT sha256sum, COALESCE(category, '') FROM uploads WHERE id = ?`, id).
+		Scan(&hashBytes, &category)
+
+	// no finalized upload exists
+	if err == sql.ErrNoRows || (err == nil && hashBytes == nil) {
+		return store.incompleteBinPath(id), nil
+	}
 	if err != nil {
 		return "", fmt.Errorf("could not look up hash: %w", err)
 	}
-
-	if !isFinal {
-		return store.incompleteBinPath(id), nil
-	}
-
-	var category string
-	store.DBConn.DB.QueryRow(`SELECT COALESCE(category, '') FROM uploads WHERE id = ?`, id).Scan(&category)
 
 	return store.completeBinPath(hashBytes, category), nil
 }
@@ -545,12 +547,9 @@ func RemoveWithDirs(path string, basePath string) (err error) {
 		return fmt.Errorf("Path %#v is not prefixed by basepath %#v", path, basePath)
 	}
 
-	if _, err := os.Stat(path); err == nil {
-		err = os.Remove(path)
-	} else if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
+	// A file that is already gone (e.g. removed by an external cleanup job)
+	// must still have its empty parent directories pruned below.
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
