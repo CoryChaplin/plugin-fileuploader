@@ -41,6 +41,7 @@ export function createUploadBlob(kiwiApi) {
                 .use(Tus, {
                     endpoint: kiwiApi.state.setting('fileuploader.server'),
                     chunkSize: 512 * KiB,
+                    removeFingerprintOnSuccess: true,
                 });
 
             uppy.on('upload-success', (file, response) => {

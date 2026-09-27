@@ -27,6 +27,9 @@ export default function instantiateUppy({
     const effectiveTusOpts = {
         endpoint: kiwiApi.state.setting('fileuploader.server'),
         chunkSize: 512 * KiB,
+        // Forget completed uploads so re-sending the same file creates a new
+        // upload (with a fresh expiry) instead of returning the old link
+        removeFingerprintOnSuccess: true,
         ...tusOptions,
     };
 

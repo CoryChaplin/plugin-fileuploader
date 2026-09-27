@@ -196,7 +196,7 @@ func (serv *UploadServer) registerTusHandlers(r *gin.Engine, store *shardedfiles
 	// Register a dummy handler for OPTIONS, without this the middleware's would not be called
 	rg.OPTIONS("*any", gin.WrapH(noopHandler))
 
-	headFile := gin.WrapF(handler.HeadFile)
+	headFile := serv.headFile(handler)
 	rg.HEAD(":id", headFile)
 	rg.HEAD(":id/:filename", rewritePath(headFile, routePrefix))
 
@@ -263,6 +263,22 @@ func (serv *UploadServer) delFile(handler *tusd.UnroutedHandler) gin.HandlerFunc
 		}
 
 		handler.DelFile(c.Writer, c.Request)
+	}
+}
+
+// headFile wraps tusd's HEAD handler so that expired uploads answer 404.
+// tus clients HEAD a previously stored upload URL before resuming it; if an
+// expired-but-not-yet-purged upload looked complete, re-sending the same file
+// would hand back the old, dead link instead of creating a new upload.
+func (serv *UploadServer) headFile(handler *tusd.UnroutedHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if upload, err := serv.store.GetUpload(c.Request.Context(), c.Param("id")); err == nil {
+			if info, err := upload.GetInfo(c.Request.Context()); err == nil && isExpired(info) {
+				c.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+		}
+		handler.HeadFile(c.Writer, c.Request)
 	}
 }
 
