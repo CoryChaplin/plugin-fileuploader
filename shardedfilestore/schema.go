@@ -117,7 +117,8 @@ func (store *ShardedFileStore) initDB() {
 				Id: "7",
 				Up: []string{
 					// dedup lookups in Terminate() and the expirer's periodic scan
-					`CREATE INDEX idx_uploads_sha256sum ON uploads(` + shaIndexColumn + `);`,
+					// deleted is included so SQLite prefers this index over the (deleted, ...) ones
+					`CREATE INDEX idx_uploads_sha256sum ON uploads(` + shaIndexColumn + `, deleted);`,
 					`CREATE INDEX idx_uploads_expires_at ON uploads(deleted, expires_at);`,
 					`CREATE INDEX idx_uploads_created_at ON uploads(deleted, created_at);`,
 				},
