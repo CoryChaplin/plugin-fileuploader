@@ -565,10 +565,18 @@ func RemoveWithDirs(path string, basePath string) (err error) {
 		}
 
 		empty, err := isDirEmpty(parent)
-		if empty {
-			err = os.Remove(parent)
+		if os.IsNotExist(err) {
+			// already pruned (e.g. by an external cleanup job), keep walking up
+			continue
 		}
 		if err != nil {
+			return err
+		}
+		if !empty {
+			// a non-empty directory keeps all of its ancestors non-empty too
+			break
+		}
+		if err := os.Remove(parent); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}

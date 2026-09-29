@@ -8,9 +8,11 @@ import (
 
 func (store *ShardedFileStore) initDB() {
 	shaIndexColumn := "sha256sum"
+	dropIndex := func(name string) string { return `DROP INDEX ` + name + `;` }
 	if store.DBConn.DriverName == "mysql" {
 		// MySQL cannot index a BLOB column without a prefix length
 		shaIndexColumn = "sha256sum(32)"
+		dropIndex = func(name string) string { return `DROP INDEX ` + name + ` ON uploads;` }
 	}
 
 	migrations := &migrate.MemoryMigrationSource{
@@ -121,6 +123,16 @@ func (store *ShardedFileStore) initDB() {
 					`CREATE INDEX idx_uploads_sha256sum ON uploads(` + shaIndexColumn + `, deleted);`,
 					`CREATE INDEX idx_uploads_expires_at ON uploads(deleted, expires_at);`,
 					`CREATE INDEX idx_uploads_created_at ON uploads(deleted, created_at);`,
+				},
+			},
+			{
+				Id: "8",
+				Up: []string{
+					// one index serves both expirer queries: by expires_at, and by
+					// created_at for uploads that never got an expires_at
+					`CREATE INDEX idx_uploads_expiry ON uploads(deleted, expires_at, created_at);`,
+					dropIndex("idx_uploads_expires_at"),
+					dropIndex("idx_uploads_created_at"),
 				},
 			},
 		},
