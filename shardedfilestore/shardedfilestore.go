@@ -157,10 +157,26 @@ func (store ShardedFileStore) GetUpload(ctx context.Context, id string) (handler
 		return nil, err
 	}
 
-	binPath, err := store.binPath(id)
+	row, err := store.lookupUpload(id)
 	if err != nil {
 		return nil, err
 	}
+	binPath := store.binPathForRow(id, row)
+
+	// The db expiry wins over the one saved in the .info sidecar when it is
+	// earlier: uploads can be expired from the db (blocked files, manual
+	// unpublishing) and must stop being served at once, not only once the
+	// expirer has purged them.
+	if row != nil && row.ExpiresAt.Valid {
+		saved, err := strconv.ParseInt(info.MetaData["expires"], 10, 64)
+		if err != nil || row.ExpiresAt.Int64 < saved {
+			if info.MetaData == nil {
+				info.MetaData = handler.MetaData{}
+			}
+			info.MetaData["expires"] = strconv.FormatInt(row.ExpiresAt.Int64, 10)
+		}
+	}
+
 	infoPath := store.infoPath(id)
 	stat, err := os.Stat(binPath)
 	if err != nil {
@@ -193,23 +209,45 @@ func (store ShardedFileStore) AsConcatableUpload(upload handler.Upload) handler.
 	return upload.(*fileUpload)
 }
 
-// binPath returns the path to the file storing the binary data.
-func (store ShardedFileStore) binPath(id string) (string, error) {
-	// hash and category in a single query: this runs several times per request
-	var hashBytes []byte
-	var category string
-	err := store.DBConn.DB.QueryRow(`SELECT sha256sum, COALESCE(category, '') FROM uploads WHERE id = ?`, id).
-		Scan(&hashBytes, &category)
+type uploadRow struct {
+	Hash      []byte
+	Category  string
+	ExpiresAt sql.NullInt64
+}
 
-	// no finalized upload exists
-	if err == sql.ErrNoRows || (err == nil && hashBytes == nil) {
-		return store.incompleteBinPath(id), nil
+// lookupUpload fetches what is needed to locate and serve an upload in a
+// single query: it runs several times per request. It returns nil if the
+// upload has no db record.
+func (store ShardedFileStore) lookupUpload(id string) (*uploadRow, error) {
+	row := uploadRow{}
+	err := store.DBConn.DB.QueryRow(`SELECT sha256sum, COALESCE(category, ''), expires_at FROM uploads WHERE id = ?`, id).
+		Scan(&row.Hash, &row.Category, &row.ExpiresAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("could not look up hash: %w", err)
+		return nil, fmt.Errorf("could not look up hash: %w", err)
 	}
+	return &row, nil
+}
 
-	return store.completeBinPath(hashBytes, category), nil
+// binPathForRow returns the path to the binary data of an upload, given its
+// db record (nil if it has none).
+func (store ShardedFileStore) binPathForRow(id string, row *uploadRow) string {
+	// no finalized upload exists
+	if row == nil || row.Hash == nil {
+		return store.incompleteBinPath(id)
+	}
+	return store.completeBinPath(row.Hash, row.Category)
+}
+
+// binPath returns the path to the file storing the binary data.
+func (store ShardedFileStore) binPath(id string) (string, error) {
+	row, err := store.lookupUpload(id)
+	if err != nil {
+		return "", err
+	}
+	return store.binPathForRow(id, row), nil
 }
 
 // infoPath returns the path to the .info file storing the upload's metadata.
