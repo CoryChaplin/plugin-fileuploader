@@ -45,6 +45,7 @@ type ShardedFileStore struct {
 	ExpireIdentifiedTime time.Duration // How long before an upload expires with valid account (seconds)
 	Categories           map[string]config.CategoryConfig
 	PreFinishCommands    []config.PreFinishCommand
+	blockedHashes        map[string]struct{} // hex sha256 of files that are refused
 	DBConn               *db.DatabaseConnection
 	log                  *zerolog.Logger
 }
@@ -355,6 +356,24 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 		return err
 	}
 
+	if upload.store.isBlockedHash(hash) {
+		// the uploader IP is kept out of the metadata, it only lives in the db
+		var remoteIP sql.NullString
+		upload.store.DBConn.DB.QueryRow(`SELECT uploader_ip FROM uploads WHERE id = ?`, upload.info.ID).Scan(&remoteIP)
+
+		upload.store.log.Warn().
+			Str("event", "blocked_hash").
+			Str("id", upload.info.ID).
+			Str("sha256sum", hex.EncodeToString(hash)).
+			Str("remoteIP", remoteIP.String).
+			Str("account", upload.info.MetaData["account"]).
+			Str("filename", upload.info.MetaData["filename"]).
+			Msg("Rejected upload of a blocked file")
+
+		upload.store.Terminate(upload.info.ID)
+		return handler.NewHTTPError(errors.New("Upload has been reject by server"), 406)
+	}
+
 	category := upload.info.MetaData["category"]
 	expires := upload.store.expiryForUpload(category, upload.info.MetaData["account"] != "")
 	upload.info.MetaData["expires"] = strconv.FormatInt(expires, 10)
@@ -424,6 +443,57 @@ func (upload *fileUpload) FinishUpload(ctx context.Context) error {
 }
 
 // ADDED FUNCTIONS
+
+// SetBlockedHashes sets the hex encoded sha256 sums of the files that are
+// refused on upload, and expires the uploads of those files that are already
+// stored so the expirer removes them on its next pass.
+//
+// An invalid entry is logged and skipped rather than failing, so a typo in the
+// config cannot take the server down on reload.
+func (store *ShardedFileStore) SetBlockedHashes(hexHashes []string) {
+	blocked := make(map[string]struct{}, len(hexHashes))
+	for _, hexHash := range hexHashes {
+		hexHash = strings.ToLower(strings.TrimSpace(hexHash))
+		hash, err := hex.DecodeString(hexHash)
+		if err != nil || len(hash) != sha256.Size {
+			store.log.Error().
+				Str("sha256sum", hexHash).
+				Msg("Ignoring invalid sha256 in BlockedHashes")
+			continue
+		}
+		blocked[hexHash] = struct{}{}
+	}
+	store.blockedHashes = blocked
+
+	now := time.Now().Unix()
+	for hexHash := range blocked {
+		hash, _ := hex.DecodeString(hexHash)
+		res, err := store.DBConn.DB.Exec(`
+			UPDATE uploads
+			SET expires_at = ?
+			WHERE sha256sum = ? AND deleted = 0 AND (expires_at IS NULL OR expires_at > ?)
+		`, now, hash, now)
+		if err != nil {
+			store.log.Error().
+				Err(err).
+				Str("sha256sum", hexHash).
+				Msg("Failed to expire uploads of a blocked file")
+			continue
+		}
+		if count, _ := res.RowsAffected(); count > 0 {
+			store.log.Info().
+				Str("event", "blocked_hash_purge").
+				Str("sha256sum", hexHash).
+				Int64("uploads", count).
+				Msg("Expired existing uploads of a blocked file")
+		}
+	}
+}
+
+func (store *ShardedFileStore) isBlockedHash(hash []byte) bool {
+	_, blocked := store.blockedHashes[hex.EncodeToString(hash)]
+	return blocked
+}
 
 // taken from https://github.com/tus/tusd/blob/42bfe35457f8bfc79a0af40a9f51c8112903737e/internal/uid/uid.go
 func Uid() string {

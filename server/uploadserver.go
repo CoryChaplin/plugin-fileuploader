@@ -74,6 +74,8 @@ func (serv *UploadServer) Run(replaceableHandler *ReplaceableHandler) error {
 		serv.log,
 	)
 
+	serv.store.SetBlockedHashes(serv.cfg.Storage.BlockedHashes)
+
 	serv.expirer = expirer.New(
 		serv.store,
 		serv.cfg.Expiration.CheckInterval.Duration,

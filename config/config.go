@@ -51,6 +51,7 @@ type Config struct {
 		ShardLayers       int
 		ExifRemove        bool
 		MaximumUploadSize datasize.ByteSize
+		BlockedHashes     []string // hex sha256 of files that are refused
 	}
 	Database struct {
 		Type string

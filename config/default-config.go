@@ -38,6 +38,13 @@ Path = "./uploads"
 ShardLayers = 6
 MaximumUploadSize = "10 MB" # accepts units such as: MB, g, tB, peta, kilobytes, gigabyte
 
+# SHA-256 sums (hex) of files that must be refused, whatever their filename.
+# Uploads of these files that are already stored are removed by the next expiry pass.
+BlockedHashes = []
+# BlockedHashes = [
+# 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+# ]
+
 [Database]
 Type = "sqlite3" # sqlite3 | mysql
 
